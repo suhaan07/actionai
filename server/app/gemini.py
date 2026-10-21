@@ -43,6 +43,24 @@ async def media_part(data: bytes, mime: str) -> types.Part:
     return types.Part.from_uri(file_uri=f.uri, mime_type=mime)
 
 
+# Models that just refused for capacity: skipped until this time, so we stop burning seconds on them.
+# A spent daily quota benches the model for an hour; a per-minute limit or overload for a minute.
+_benched: dict[str, float] = {}
+
+
+def _bench(model: str, e: Exception) -> None:
+    s = str(e)
+    if "PerDay" in s:
+        _benched[model] = time.monotonic() + 3600
+    elif _busy(e) is not None:
+        _benched[model] = time.monotonic() + 60
+
+
+def _available(chain: list[str]) -> list[str]:
+    now = time.monotonic()
+    return [m for m in chain if _benched.get(m, 0) <= now]
+
+
 def _busy(e: Exception) -> float | None:
     """Seconds to wait if this is a rate-limit/overload error, else None."""
     s = str(e)
@@ -55,50 +73,63 @@ def _busy(e: Exception) -> float | None:
 
 
 async def json_call(schema: type[T], system: str, parts: list, temperature: float = 0.4, model: str | None = None, prefer: str = "gemini") -> T:
-    """prefer="groq" sends text-only work to Groq first and falls back to Gemini (and vice versa)."""
+    """Structured JSON from the best available model.
+
+    Text-only work: one attempt on the first available Gemini model, and on any error straight to Groq; only if Groq
+    also fails, the remaining Gemini models. prefer="groq" starts with Groq. Work with images, video or audio needs
+    Gemini, so it walks the Gemini models only.
+    """
     cfg = types.GenerateContentConfig(
         system_instruction=system,
         response_mime_type="application/json",
         response_schema=schema,
         temperature=temperature,
     )
+    text_only = all(isinstance(p, str) for p in parts)
     # Identical text-only requests reuse the saved answer, so retries and repeat views cost no quota.
-    ckey = cache.key_for("gemini", schema.__name__, schema.model_json_schema(), system, parts) if all(isinstance(p, str) for p in parts) else None
+    ckey = cache.key_for("gemini", schema.__name__, schema.model_json_schema(), system, parts) if text_only else None
     if ckey:
         hit = await cache.get(ckey)
         if hit is not None:
             return schema.model_validate(hit)
-    text_only = all(isinstance(p, str) for p in parts)
     joined = "\n\n".join(p for p in parts if isinstance(p, str))
-    if prefer == "groq" and text_only and groq.enabled:
+    chain = _available([model] if model else MODELS) or ([model] if model else MODELS)
+    use_groq = text_only and groq.enabled
+
+    result: T | None = None
+    if use_groq and prefer == "groq":
         try:
             result = await groq.json_call(schema, system, joined, temperature)
         except groq.GroqBusy as e:
             log.warning("groq unavailable, using gemini: %s", str(e)[:120])
-            result = await _call(schema, cfg, parts, model)
-    else:
+            result = await _call(schema, cfg, parts, chain)
+    elif use_groq:
         try:
-            result = await _call(schema, cfg, parts, model)
-        except GeminiError:
-            if not (text_only and groq.enabled):
-                raise
-            log.warning("gemini unavailable, using groq")
+            result = await _call(schema, cfg, parts, chain[:1], quick=True)
+        except GeminiError as e:
+            log.warning("gemini %s failed, switching to groq: %s", chain[0], str(e)[:120])
             try:
                 result = await groq.json_call(schema, system, joined, temperature)
-            except groq.GroqBusy as e:
-                raise GeminiError(f"both providers are busy: {e}") from e
+            except groq.GroqBusy as ge:
+                log.warning("groq also unavailable, trying the other gemini models: %s", str(ge)[:120])
+                rest = _available(chain[1:])
+                if not rest:
+                    raise GeminiError(f"all models are busy: {ge}") from ge
+                result = await _call(schema, cfg, parts, rest)
+    else:
+        result = await _call(schema, cfg, parts, chain)
     if ckey:
         await cache.put(ckey, result.model_dump())
     return result
 
 
-async def _call(schema: type[T], cfg: types.GenerateContentConfig, parts: list, model: str | None) -> T:
-    chain = [model] if model else MODELS
+async def _call(schema: type[T], cfg: types.GenerateContentConfig, parts: list, chain: list[str], quick: bool = False) -> T:
+    """Try each model in turn. quick=True: one attempt each, no waiting (the caller has a fallback)."""
     last: Exception | None = None
     started = time.monotonic()
-    for round_ in range(2):
+    for round_ in range(1 if quick else 2):
         waits = []
-        for m in chain:
+        for m in _available(chain) or (chain if round_ else []):
             try:
                 r = await asyncio.wait_for(client.aio.models.generate_content(model=m, contents=parts, config=cfg), CALL_TIMEOUT)
                 if r.parsed is not None:
@@ -106,9 +137,10 @@ async def _call(schema: type[T], cfg: types.GenerateContentConfig, parts: list, 
                 return schema.model_validate_json(r.text or "{}")
             except Exception as e:
                 last = e
+                _bench(m, e)
                 wait = _busy(e)
                 log.warning("gemini %s failed (round %s): %s", m, round_ + 1, str(e)[:160])
-                if wait is None:
+                if wait is None and not quick:
                     # Not a capacity problem (bad output, bad request): one quick retry on the same model.
                     try:
                         r = await asyncio.wait_for(client.aio.models.generate_content(model=m, contents=parts, config=cfg), CALL_TIMEOUT)
@@ -116,9 +148,10 @@ async def _call(schema: type[T], cfg: types.GenerateContentConfig, parts: list, 
                     except Exception as e2:
                         last = e2
                     continue
-                waits.append(wait)
-        if round_ == 0 and waits:
+                if wait is not None and "PerDay" not in str(e):
+                    waits.append(wait)
+        if round_ == 0 and waits and not quick:
             if time.monotonic() - started > 150:
                 break  # don't keep the user waiting more than ~2.5 minutes
             await asyncio.sleep(min(min(waits), 20))
-    raise GeminiError(str(last))
+    raise GeminiError(str(last) if last else "no Gemini model available right now")
