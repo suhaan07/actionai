@@ -4,7 +4,7 @@
 
 Action AI is a team of agents for ad teams. It reads an ad, scores every cultural reference in it for each city with Qloo's taste graph, rewrites what doesn't fit, and splits the media budget by measured cultural fit, before a rupee or dollar is spent.
 
-**Live demo:** _(Vercel URL)_ · open it and click **Take the tour** (US or India, about 4 minutes, you click through).
+**Live demo:** https://actionai-pink.vercel.app · open it and click **Take the tour** (US or India, about 4 minutes, you click through).
 **Backend:** https://actionai-api.onrender.com/health
 
 ---

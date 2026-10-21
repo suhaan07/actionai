@@ -73,7 +73,7 @@ Qloo API · Gemini 2.5 Flash · Groq (gpt-oss-120b) · Pollinations (FLUX) · Fa
 
 ## Testing instructions (for judges)
 
-1. Open the live demo. No login is needed.
+1. Open the live demo at https://actionai-pink.vercel.app. No login is needed.
 2. Click **Take the tour** for the US version, or **or the India version**. It is a fictional music festival (EchoFest) touring five cities; you click each step yourself. About 4 minutes.
 3. Then try your own request on the home page, for example:
    - `Launching a canned cold coffee for college students in Mumbai, Bengaluru and Kolkata: insights, a script and 3 Reel ideas`
