@@ -104,7 +104,7 @@ async def read(
     fingerprint = {"text": text, "caption": caption, "name": name, "format": format, "regions": region_names,
                    "file": hashlib.sha256(media[0]).hexdigest() if media else None}
     try:
-        out = await _memo("read:v2", fingerprint, lambda: read_agent.read_creative(
+        out = await _memo("read:v3", fingerprint, lambda: read_agent.read_creative(
             text=text or None, media=media, caption=caption or None, name=name or (file.filename if file else None), fmt=format, region_names=region_names))
     except Exception as e:
         _fail(e, "Reading the ad")

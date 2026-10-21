@@ -115,11 +115,11 @@ export function buildTour(sc: Scenario): TourStep[] {
     {
       id: 'highlight',
       scene: 1,
-      target: '[data-tour="script"] [data-band="low"]',
+      target: '[data-tour="script"] [data-lowest="1"]',
       title: 'What’s dragging it down?',
-      body: 'Click a red phrase to see its Qloo heatmap across the five cities.',
+      body: 'This is the weakest reference here. Click it to see its Qloo heatmap across the five cities.',
       mode: 'click',
-      skipIf: () => !document.querySelector('[data-tour="script"] [data-band="low"]'),
+      skipIf: () => !document.querySelector('[data-tour="script"] [data-lowest="1"]'),
       place: 'bottom',
     },
     {

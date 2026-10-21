@@ -163,6 +163,13 @@ async def read_creative(*, text: str | None, media: tuple[bytes, str] | None, ca
     async def one(cue: Cue):
         signals = await resolve_cue(cue)
         totals, per = await score_signals(signals, region_list) if signals else ({}, [])
+        if signals and not totals and signals[0]["kind"] == "tag":
+            # Some genre tags have no heatmap data: score the genre through its top artists in Qloo instead.
+            artists = await qloo.insights({"filter.type": "urn:entity:artist", "signal.interests.tags": signals[0]["id"], "take": 3})
+            stand_ins = [{"kind": "entity", "id": a["id"], "name": a["name"], "type": "urn:entity:artist"} for a in artists[:3]]
+            if stand_ins:
+                signals = stand_ins
+                totals, per = await score_signals(signals, region_list)
         per = [p for p in per if p["heat"]] or per
         via_proxy = bool(signals) and not (cue.kind == "named" or cue.qloo_type == "music_genre") or (bool(signals) and signals[0]["name"].lower() != cue.search.lower() and cue.kind != "named")
         return cue, signals, totals, per, via_proxy

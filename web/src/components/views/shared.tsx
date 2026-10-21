@@ -41,6 +41,10 @@ export function HighlightedScript({
   onRef?: (r: Reference) => void
   activeRef?: string
 }) {
+  // The weakest scored reference in this city, for the tour's "what's dragging it down?" step.
+  const lowest = city
+    ? creative.refs.filter((r) => r.enabled && r.kind !== 'unmatched' && r.scores[city] !== undefined).sort((a, b) => a.scores[city] - b.scores[city])[0]?.id
+    : undefined
   return (
     <p className="font-serif text-[21px] leading-[1.6] text-ink">
       {segments(creative.text, creative.refs).map((s, i) => {
@@ -52,6 +56,7 @@ export function HighlightedScript({
           <button
             key={i}
             data-band={tone}
+            data-lowest={r.id === lowest ? '1' : undefined}
             onClick={() => onRef?.(r)}
             className={`relative rounded-[3px] px-0.5 underline decoration-2 underline-offset-[5px] transition-colors duration-500 ${HL[tone]} ${activeRef === r.id ? 'ring-1 ring-ink' : ''}`}
             title={score !== undefined ? `${r.label}: ${score} in ${city}` : r.label}
