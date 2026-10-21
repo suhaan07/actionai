@@ -27,7 +27,16 @@ One prompt box, four agents, plus Ask. A router reads each request (in any wordi
 | **▤ Spend** | A budget | A starting split by cultural fit × audience ÷ CPM, "fix before you spend" flags, a targeting pack, creator suggestions, and a Meta Ads Manager CSV |
 | **? Ask** | Any question | Answers from Qloo data: headliners, ambassadors, creators, tie-ins, with a verdict on any name you suggest |
 
-Every score, insight and swap carries a footnote that opens the Qloo entities, per-city affinity and the exact API calls behind it. A shareable report and PDF summarise the campaign.
+Every score, insight and swap carries a footnote that opens the Qloo entities, per-city affinity and the exact API calls behind it.
+
+**Also in the app**
+
+- **Guided tour** in two markets (US and India): a fictional music festival, EchoFest, touring five cities, clicked through step by step and replayed from cache, so it is instant.
+- **Visual mock-ups:** Pollinations FLUX renders a frame for the post and for Adapt's before and after. Images carry no text; the app overlays the headline so it is always spelled right.
+- **Shareable report** at `/r/<id>`: one page for a boss or client, printable to PDF.
+- **Meta Ads Manager CSV:** the starting split, interests and regions in a bulk-import file.
+- **Conversation, not forms:** follow-ups build on the campaign so far ("make it work in Delhi too"); **Stop** cancels a run, **Edit & resend** rewrites a message, and loading skeletons show what is coming.
+- **Any market:** India, US and UK presets, plus any city, town or state Qloo knows, across countries.
 
 ### Examples from the live data
 
@@ -68,7 +77,7 @@ FastAPI (Render) ── Qloo API ............ every score, profile, person and h
 
 - **Router with memory.** One structured-output call turns a message into intents, regions, market, budget, deliverables, constraints ("keep the sponsor"), focus ("only the music"), assumptions to check and clarifying questions written for that request. It sees the last few messages, so "make it work in Delhi too" connects.
 - **Agents chain themselves.** Spend needs scores, so Test runs first; Create's master script is read and scored before Adapt; "adapt the weak cities" expands into one step per city under 50.
-- **Model fallback both ways.** Gemini falls back across Gemini models and then Groq for text; Groq falls back to Gemini. Identical requests are answered from cache.
+- **Model fallback.** Text work gets one quick Gemini attempt and switches to Groq on any error, then the other Gemini models only if Groq fails too. A model whose daily quota is spent is skipped for an hour. Groq-first work (routing, checks) falls back to Gemini. Images, video and audio are read by Gemini only. Identical requests are answered from cache, so retries cost no quota.
 - **Guardrails.** The sensitivity check runs on every route, swap and master script, with a curated global, country and city list ([server/data/sensitivity.json](server/data/sensitivity.json)). It fails closed: if it can't run, every item needs a human look. Flagged swaps can't be accepted without a safer option or a logged override.
 
 ## Honest limits
@@ -105,6 +114,7 @@ Create the tables once: paste [server/supabase/schema.sql](server/supabase/schem
 | `QLOO_API_KEY`, `QLOO_BASE_URL` | Qloo hackathon API |
 | `GEMINI_API_KEY` | Google AI Studio |
 | `GROQ_API_KEY` | Groq (optional; falls back to Gemini) |
+| `GEMINI_MODEL`, `GEMINI_FALLBACKS`, `GROQ_MODELS` | Optional model overrides (defaults: `gemini-2.5-flash`; three Flash-Lite fallbacks; `gpt-oss-120b`, `gpt-oss-20b`) |
 | `POLLINATIONS_API_KEY` | Image mock-ups (optional) |
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | Cache and campaigns |
 
@@ -112,7 +122,7 @@ Create the tables once: paste [server/supabase/schema.sql](server/supabase/schem
 
 - **Backend:** Render web service, root `server`, build `pip install -r requirements.txt`, start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, `PYTHON_VERSION=3.12.7`, the variables above. See [render.yaml](render.yaml).
 - **Frontend:** Vercel, root `web`, `VITE_API_URL` set to the backend URL. [web/vercel.json](web/vercel.json) handles client-side routes.
-- **Warm cache:** `python scripts/push_cache.py` copies a local cache into Supabase.
+- **Warm cache:** `python scripts/push_cache.py` (run from `server/`) copies a local cache into Supabase.
 - **Keep-alive:** ping `/health?deep=1` every few minutes (UptimeRobot, or the GitHub Action in `.github/workflows`).
 
 ## Repository
@@ -126,7 +136,11 @@ Create the tables once: paste [server/supabase/schema.sql](server/supabase/schem
 | `server/app/agents/talk.py` | Router understanding, personas, follow-ups |
 | `server/app/regions.py` | Markets, cities, states, towns, heatmap scoping |
 | `web/src/lib/engine/` | Router plan, step runners, scoring and budget split |
+| `server/app/agents/sensitivity.py` | Sensitivity check on routes, swaps and scripts |
+| `server/app/gemini.py`, `groq.py` | Model calls, fallback and response cache |
+| `server/app/imagegen.py` | Mock-up scene prompts and Pollinations rendering |
 | `web/src/lib/tour.ts` | The guided product tour |
+| `web/src/lib/metaExport.ts`, `web/src/pages/Report.tsx` | Meta CSV export and the shareable report |
 | `docs/` | Build plan and Qloo API notes |
 
 MIT licensed.
