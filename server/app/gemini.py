@@ -23,6 +23,7 @@ T = TypeVar("T", bound=BaseModel)
 
 INLINE_LIMIT = 18 * 1024 * 1024
 CALL_TIMEOUT = 75  # seconds per model attempt; a stuck call moves on to the next model
+QUICK_TIMEOUT = 20  # the quick try before Groq: a stuck call shouldn't hold the user for long
 MODELS = [config.GEMINI_MODEL] + [m for m in config.GEMINI_FALLBACKS if m != config.GEMINI_MODEL]
 
 
@@ -131,7 +132,7 @@ async def _call(schema: type[T], cfg: types.GenerateContentConfig, parts: list, 
         waits = []
         for m in _available(chain) or (chain if round_ else []):
             try:
-                r = await asyncio.wait_for(client.aio.models.generate_content(model=m, contents=parts, config=cfg), CALL_TIMEOUT)
+                r = await asyncio.wait_for(client.aio.models.generate_content(model=m, contents=parts, config=cfg), QUICK_TIMEOUT if quick else CALL_TIMEOUT)
                 if r.parsed is not None:
                     return r.parsed  # type: ignore[return-value]
                 return schema.model_validate_json(r.text or "{}")
@@ -139,7 +140,7 @@ async def _call(schema: type[T], cfg: types.GenerateContentConfig, parts: list, 
                 last = e
                 _bench(m, e)
                 wait = _busy(e)
-                log.warning("gemini %s failed (round %s): %s", m, round_ + 1, str(e)[:160])
+                log.warning("gemini %s failed (round %s): %s", m, round_ + 1, str(e)[:160] or type(e).__name__)
                 if wait is None and not quick:
                     # Not a capacity problem (bad output, bad request): one quick retry on the same model.
                     try:

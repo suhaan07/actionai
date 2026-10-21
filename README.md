@@ -2,7 +2,7 @@
 
 **Creative intelligence that makes every ad land in every city.**
 
-Action AI is a team of agents for ad teams. It reads an ad, scores every cultural reference in it for each city with Qloo's taste graph, rewrites what doesn't fit, and splits the media budget by measured cultural fit, before a rupee or dollar is spent.
+Action AI is a team of agents for ad teams, and for the creators and small brands who have no ad team. It reads an ad or a Reel, scores every cultural reference in it for each city with Qloo's taste graph, rewrites what doesn't fit, and splits the budget by measured cultural fit, before a rupee or dollar is spent.
 
 **Live demo:** https://actionai-pink.vercel.app · open it and click **Take the tour** (US or India, about 4 minutes, you click through).
 **Backend:** https://actionai-api.onrender.com/health
@@ -13,11 +13,11 @@ Action AI is a team of agents for ad teams. It reads an ad, scores every cultura
 
 Brands make one hero ad and stretch it across a country. In India a campaign built on Punjabi weddings, Bollywood and Delhi street food lands flat in Chennai or Kolkata; in the US a Nashville country spot means little in Miami. Regional versions are usually just translated, the "insight" step runs on gut feel, and budgets are split by population. Testing ads for regional fit (with survey panels from firms like Kantar or System1) is slow and expensive, so it happens on the final cut only, if at all.
 
-**Who it's for:** brand managers and agencies running multi-city campaigns, starting with D2C and FMCG brands; also film, OTT, live-event and sports marketing teams.
+**Who it's for:** brand managers and agencies running multi-city campaigns, starting with D2C and FMCG brands; also film, OTT, live-event and sports marketing teams. And creators: a Gen Z food vlogger in Delhi or a thrift-fit TikToker in Atlanta has the same problem with no brand manager, no research budget and no idea which city to court next. A switch on the home page turns Action AI into their growth tool.
 
 ## What it does
 
-One prompt box, four agents, plus Ask. A router reads each request (in any wording, Hinglish included) and plans the run as a visible shot list.
+One prompt box, four agents for ad teams, Grow for creators, plus Ask. A router reads each request (in any wording, Hinglish included) and plans the run as a visible shot list.
 
 | Agent | You bring | You get |
 | --- | --- | --- |
@@ -25,6 +25,7 @@ One prompt box, four agents, plus Ask. A router reads each request (in any wordi
 | **◎ Test** | A script, image, video or Reel | Every cultural reference found and scored per city, what helps and hurts, simulated personas built from Qloo taste clusters |
 | **⇄ Adapt** | An ad that works in one city | Each weak reference swapped for what holds the same cultural slot in the target city, scored, explained, sensitivity-checked, with AI before/after mock-ups |
 | **▤ Spend** | A budget | A starting split by cultural fit × audience ÷ CPM, "fix before you spend" flags, a targeting pack, creator suggestions, and a Meta Ads Manager CSV |
+| **↗ Grow** (creators) | A Reel, a post, or just "I make street food Reels in Delhi" | Where the content lands next (Qloo fit × people there), and for each city a hook, caption, hashtags, audio, one local touch with its Qloo evidence, and local creators to duet, stitch or collab with |
 | **? Ask** | Any question | Answers from Qloo data: headliners, ambassadors, creators, tie-ins, with a verdict on any name you suggest |
 
 Every score, insight and swap carries a footnote that opens the Qloo entities, per-city affinity and the exact API calls behind it.
@@ -37,12 +38,14 @@ Every score, insight and swap carries a footnote that opens the Qloo entities, p
 - **Meta Ads Manager CSV:** the starting split, interests and regions in a bulk-import file.
 - **Conversation, not forms:** follow-ups build on the campaign so far ("make it work in Delhi too"); **Stop** cancels a run, **Edit & resend** rewrites a message, and loading skeletons show what is coming.
 - **Any market:** India, US and UK presets, plus any city, town or state Qloo knows, across countries.
+- **For ad teams / For creators:** one switch on the home page changes the pitch, the examples and the agent cards (Grow, Test, Adapt, Boost).
 
 ### Examples from the live data
 
 - **"Make our coffee ad for Chennai with Hindi songs, they'll love it."** Create checks the assumption first. Qloo: Hindi music scores **47 in Chennai**, the lowest of six Indian cities (Kolkata 92, Delhi 87). It says so, and builds the script on what Chennai does over-index on.
 - **Punjabi music:** Delhi **99** vs Chennai **22**. **Country music:** Nashville **87** vs Miami **25**.
 - **Adapt, Nashville → Miami:** the honky-tonk, steel-guitar anthem and hot chicken become a South Beach nightclub, a cubaton track and Miami's own food spots; fit climbs into the 90s, sponsor untouched.
+- **"I make street food Reels in Delhi. Which cities would love my content next?"** Grow reads the niche (Old Delhi chaat, paratha stalls, bhangra), scores it across 12 Indian cities (Delhi 89 at home; Jaipur 86, Mumbai 84, Kolkata 84 next; Kochi 45) and writes a post plan per city: "Kolkata, who's up for a chaat showdown?", #KolkataStreetFood, an Anupam Roy sound, a Mani Square collab, and the creators Kolkata's audience over-indexes on.
 - **"Maybe Virat Kohli as our cricket ambassador?"** Kohli scores 72 in London and 100 in Mumbai; Qloo's own cricketers ranked for each city add Ben Stokes (London 92) and Hardik Pandya (Mumbai 100).
 
 ## How Qloo is used
@@ -60,6 +63,7 @@ Qloo is the source of every number. The language models read and write; they nev
 | Personas | `/v2/insights` with `signal.demographics.age` and `signal.demographics.gender` per city | Each persona is a real taste cluster; labelled as simulated |
 | People on a topic | `/v2/tags` finds the occupation tag (e.g. Cricketer, Influencer) → `/search` finds Qloo's most popular people with it → `/v2/insights` ranks people around them per city → results kept only if Qloo tags them with that occupation | Qloo uses more than one ID for the same occupation, so matching is by tag name |
 | Assumption checks | Heatmap of the thing the user assumed, across the market's cities | Answers "will Hindi songs work in Chennai?" with a number |
+| Grow (creators) | The creator's content scored by heatmap across the whole market; each target city's `/v2/insights` lists; its top 100 `urn:entity:person` filtered by Qloo social-creator occupation tags, each scored by heatmap | Every name in a hook, hashtag, sound or local touch must come from that city's lists; celebrity and brand hashtags are filtered out in code |
 
 **Caching.** Every Qloo response is cached privately (Supabase, disk fallback), as Qloo's hackathon terms allow. No Qloo data is committed to this repository.
 
@@ -86,6 +90,7 @@ FastAPI (Render) ── Qloo API ............ every score, profile, person and h
 - Qloo ranks creators by how much a city's audience likes them, not by category fit; check fit with your brand yourself.
 - Small-town and rural data is thinner than for metros.
 - The Meta export is a starting file for Ads Manager's bulk import; check interests exist in Meta before importing.
+- Grow ranks cities by taste fit and rough audience size, not by follower forecasts. Qloo has no data on posting times, trends or the algorithm, so none of that is guessed.
 - Only aggregate regional taste is used. No individual is profiled, and no face is identified in uploaded media.
 
 ## Run it locally
@@ -136,7 +141,8 @@ Create the tables once: paste [server/supabase/schema.sql](server/supabase/schem
 | `server/app/agents/talk.py` | Router understanding, personas, follow-ups |
 | `server/app/regions.py` | Markets, cities, states, towns, heatmap scoping |
 | `web/src/lib/engine/` | Router plan, step runners, scoring and budget split |
-| `server/app/agents/sensitivity.py` | Sensitivity check on routes, swaps and scripts |
+| `server/app/agents/grow.py` | Grow: per-city post plans and local creators for creators |
+| `server/app/agents/sensitivity.py` | Sensitivity check on routes, swaps, scripts and captions |
 | `server/app/gemini.py`, `groq.py` | Model calls, fallback and response cache |
 | `server/app/imagegen.py` | Mock-up scene prompts and Pollinations rendering |
 | `web/src/lib/tour.ts` | The guided product tour |

@@ -1,12 +1,12 @@
 import { ArrowRight } from 'lucide-react'
-import { AGENTS, AGENT_ORDER } from '../../lib/agents'
+import { AGENTS, BRAND_AGENTS, type AgentMeta } from '../../lib/agents'
 import type { AgentId } from '../../lib/types'
 
-export function AgentCards({ pinned, onPick }: { pinned?: AgentId; onPick: (a: AgentId) => void }) {
+export function AgentCards({ pinned, onPick, ids = BRAND_AGENTS, copy = {} }: { pinned?: AgentId; onPick: (a: AgentId) => void; ids?: AgentId[]; copy?: Partial<Record<AgentId, Partial<AgentMeta>>> }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {AGENT_ORDER.map((id) => {
-        const a = AGENTS[id]
+      {ids.map((id) => {
+        const a = { ...AGENTS[id], ...copy[id] }
         const on = pinned === id
         return (
           <button
@@ -119,6 +119,24 @@ function Preview({ id, dark }: { id: AgentId; dark: boolean }) {
           <span className={dark ? 'text-chalk' : 'text-ink'}>Festival morning</span>
           <span className={`ml-auto ${lbl}`}>41→78</span>
         </div>
+      </div>
+    )
+
+  if (id === 'grow')
+    return (
+      <div className="flex h-full flex-col justify-center gap-[5px]">
+        {[
+          ['HOME', 92, false],
+          ['MUM', 81, true],
+          ['PUN', 74, true],
+          ['CHE', 38, false],
+        ].map(([c, w, next], i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className={`${lbl} w-7`}>{c as string}</span>
+            <div className={`pv-grow-x h-2 rounded-sm ${next ? 'bg-fit-high' : (w as number) < 50 ? muted : ink}`} style={{ width: `${w}%`, animationDelay: `${i * 120}ms` }} />
+            {next && <span className={`${lbl} shrink-0`}>↗</span>}
+          </div>
+        ))}
       </div>
     )
 

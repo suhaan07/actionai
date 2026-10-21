@@ -2,7 +2,7 @@
 // applies its result to the campaign.
 import { AGENTS } from '../agents'
 import { api } from '../api'
-import { currencyOf, defaultCpm, exampleBudget, marketOf, money, SAMPLE_SCRIPT } from '../regions'
+import { audienceOf, currencyOf, defaultCpm, exampleBudget, marketOf, money, SAMPLE_SCRIPT } from '../regions'
 import { type Attachment, type Campaign, type Chip, type City, type Creative, type PlanStep, type Take, type TakeData, type Understanding } from '../types'
 import { uid } from '../uid'
 import { buildAdapted } from './reader'
@@ -74,12 +74,14 @@ export async function runStep(c: Campaign, step: PlanStep, ctx: StepCtx, log: Lo
       return spend(c, log)
     case 'create':
       return createStep(c, ctx, log)
+    case 'grow':
+      return grow(c, ctx, log)
   }
 }
 
 async function read(c: Campaign, ctx: StepCtx, log: Log): Promise<Apply> {
   const regions = allRegions(c)
-  const inputs: { text?: string; attachment?: Attachment; placeholder?: boolean; name?: string }[] = ctx.generated
+  const inputs: { text?: string; attachment?: Attachment; placeholder?: boolean; name?: string; niche?: boolean }[] = ctx.generated
     ? [{ text: ctx.generated.script, name: ctx.generated.title }]
     : ctx.attachments.length
     ? ctx.attachments.slice(0, 3).map((a) => ({ attachment: a, text: ctx.nlu.is_script ? ctx.nlu.script_text || ctx.text : undefined }))
@@ -87,13 +89,15 @@ async function read(c: Campaign, ctx: StepCtx, log: Log): Promise<Apply> {
       ? [{ text: ctx.nlu.script_text || ctx.text }]
       : latestMaster(c)
         ? [{ text: latestMaster(c)!.script, name: latestMaster(c)!.title }]
-        : [{ text: SAMPLE_SCRIPT, placeholder: true }]
+        : ctx.nlu.intents.includes('grow') && !ctx.usePlaceholder
+          ? [{ text: ctx.text, name: 'What you make', niche: true }]
+          : [{ text: SAMPLE_SCRIPT, placeholder: true }]
 
   const results: Awaited<ReturnType<typeof api.read>>[] = []
   for (const inp of inputs) {
     const label = inp.attachment?.name ?? inp.name ?? (inp.placeholder ? 'the sample script' : 'your script')
     log(`Reading ${label} with Gemini${inp.attachment && inp.attachment.format !== 'script' ? ' (visuals, speech, music)' : ''}`)
-    const res = await api.read({ text: inp.text, attachment: inp.attachment, regions, name: inp.placeholder ? 'Sample script' : inp.name })
+    const res = await api.read({ text: inp.text, attachment: inp.attachment, regions, name: inp.placeholder ? 'Sample script' : inp.name, niche: inp.niche })
     if (inp.placeholder) res.creative.isPlaceholder = true
     log(`Found ${res.creative.refs.length} cultural references`)
     for (const r of res.creative.refs.slice(0, 4)) {
@@ -284,6 +288,58 @@ async function createStep(c: Campaign, ctx: StepCtx, log: Log): Promise<Apply> {
       summary: `${res.reply ? `${res.reply}\n\n` : ''}${master ? `Master script "${master.title}"${master.post ? ' and an Instagram post' : ''}, plus ` : ''}${got.length} taste profiles, ${got.length * 3} insights and ${routes.length} routes, each tied to the Qloo data behind it.${flagged ? ` ${flagged} route${flagged > 1 ? 's' : ''} flagged for review.` : ''}`,
       evidenceIds: res.replyEvidence ?? [],
       chips: [{ label: 'Test an ad in these regions', agent: 'test', prompt: `Test my ad in ${list(got.length ? got : cities)}` }],
+    }
+  }
+}
+
+/** Rank cities for a creator: Qloo fit of their content, weighted by how many people are there. Home is never a target. */
+export function growRanking(cr: Creative, cities: City[], home?: City, reach?: Record<string, number>) {
+  return cities
+    .map((city) => ({ city, fit: fitOrNull(cr, city), audience: audienceOf(city, reach) }))
+    .filter((x): x is { city: City; fit: number; audience: number } => x.fit !== null)
+    .map((x) => ({ ...x, home: x.city === home, potential: Math.round((x.fit / 100) ** 2 * Math.sqrt(x.audience) * 100) }))
+    .sort((a, b) => b.potential - a.potential)
+}
+
+async function grow(c: Campaign, ctx: StepCtx, log: Log): Promise<Apply> {
+  const market = marketOf(c.brief)
+  const cities = Array.from(new Set([...c.brief.cities, ...market.cities, ...market.more]))
+  const cr = (ctx.newIds.length && c.creatives[ctx.newIds.at(-1)!]) || originals(c).at(-1)
+  if (!cr) throw new Error('Nothing to grow from yet. Attach a Reel or post, or say what you make.')
+  log(`Checking where your content lands across ${cities.length} cities`)
+  const extra = await ensureScores([cr], cities, log)
+  const local = structuredClone(cr)
+  for (const r of local.refs) if (extra[cr.id]?.[r.id]) r.scores = { ...r.scores, ...extra[cr.id][r.id] }
+
+  const named = ctx.nlu.source_region ?? c.brief.sourceCity
+  const home = named && fitOrNull(local, named) !== null ? named : homeCity(local, cities).city
+  const ranked = growRanking(local, cities, home, c.brief.reach)
+  const targets = ranked.filter((x) => !x.home && x.fit >= 50).slice(0, 3).map((x) => x.city)
+  const picks = targets.length ? targets : ranked.filter((x) => !x.home).slice(0, 2).map((x) => x.city)
+  log(`${home} is home (fit ${fitOrNull(local, home)})`)
+  log(`Best next cities: ${list(picks.map((x) => `${x} (${fitOrNull(local, x)})`))}`)
+  log('Writing a hook, caption, hashtags and audio for each from Qloo taste data')
+  log('Finding local creators each city over-indexes on')
+  const fits = Object.fromEntries(ranked.map((x) => [x.city, x.fit]))
+  const res = await api.grow({ creative: local, niche: ctx.text, home, targets: picks, regions: cities, fits, audience: c.brief.audience || '18–24', brief: briefPayload(c, ctx) })
+  const flagged = Object.values(res.cities).filter((p) => p.flag).length
+  log(flagged ? `Sensitivity check flagged ${flagged} plan${flagged > 1 ? 's' : ''} for review` : 'Sensitivity check: no flags')
+
+  return (cc) => {
+    mergeScores(cc, extra)
+    Object.assign(cc.profiles, res.profiles)
+    for (const e of res.evidence) cc.evidence[e.id] = e
+    if (!cc.brief.sourceCity) cc.brief.sourceCity = home
+    const got = picks.filter((x) => res.cities[x])
+    const takeId = addTake(cc, 'grow', `Grow · ${got.length ? list(got) : 'next cities'}`, { kind: 'grow', creativeId: cr.id, home, cities, targets: got, plans: res.cities })
+    const weak = ranked.filter((x) => !x.home && x.fit < 50 && x.audience >= 3).slice(0, 1).map((x) => x.city)
+    const chips: Chip[] = got.slice(0, 1).map((x) => ({ label: `Rewrite it for ${x}`, agent: 'adapt' as const, prompt: `Make it work in ${x}` }))
+    if (weak.length) chips.push({ label: `Crack ${weak[0]}`, agent: 'adapt', prompt: `Make it work in ${weak[0]}` })
+    chips.push({ label: 'Plan a small boost', agent: 'spend', prompt: `Split ${money(exampleBudget(currencyOf(cc.brief)) / 40, currencyOf(cc.brief))} to boost it across ${list([home, ...got])}` })
+    return {
+      takeId,
+      summary: res.reply || `Your content lands best in ${home}. Grow next into ${list(got)}.`,
+      chips,
     }
   }
 }

@@ -44,6 +44,7 @@ const INTENTS: Record<AgentId, RegExp> = {
   test: /\b(test|pre-?test|score|fit|will (?:\S+\s){0,4}(?:work|land|fit)|compare|which (one|version)|check|re-?test)\b/i,
   adapt: /\b(adapt|transcreat\w*|locali[sz]\w*|make (?:\S+\s){0,4}(?:work|land|fit)|version for|rework|swap)\b/i,
   spend: /\b(spend|budget|split|allocate|boost|media plan|where should i (spend|run))\b/i,
+  grow: /\b(grow|followers|my (reels?|content|page|channel|videos?|posts?)|reach (more|new)|go viral)\b/i,
 }
 
 /** Fallback understanding when /api/understand is unreachable. */
@@ -63,7 +64,7 @@ export function understandLocally(text: string): Understanding {
 }
 
 export function mentionedAgent(text: string): AgentId | undefined {
-  const m = text.match(/@(create|test|adapt|spend)\b/i)
+  const m = text.match(/@(create|test|adapt|spend|grow)\b/i)
   return m ? (m[1].toLowerCase() as AgentId) : undefined
 }
 
@@ -132,13 +133,16 @@ export function route({ campaign, text, attachments, nlu, pinned, usePlaceholder
         { label: '◎ Test', value: 'test', hint: 'Score an ad per region' },
         { label: '⇄ Adapt', value: 'adapt', hint: 'Make an ad work elsewhere' },
         { label: '▤ Spend', value: 'spend', hint: 'Split a budget' },
+        { label: '↗ Grow', value: 'grow', hint: 'Creators: where your content lands next' },
       ],
       auto: [hasCreative ? 'test' : 'create'],
     })
     return { kind: 'run', steps: [], questions, confidence: 0.3 }
   }
 
-  const needsCreative = intents.some((i) => i !== 'create')
+  // Grow works from a Reel or post, or just from what the creator says they make.
+  const grows = intents.includes('grow')
+  const needsCreative = intents.some((i) => i !== 'create' && i !== 'grow')
   const writes = intents.includes('create') && (nlu.deliverables ?? []).some((d) => d === 'script' || d === 'social_post' || d === 'video' || d === 'reel')
   // Questions the language model wrote for this request, minus anything we already know.
   const known = {
@@ -175,6 +179,12 @@ export function route({ campaign, text, attachments, nlu, pinned, usePlaceholder
   }
 
   let targetCities: City[] = cities.length ? cities : brief.cities
+  // Grow scans the whole market for where to go next, not just the cities named.
+  const home = nlu.source_region ?? brief.sourceCity
+  if (grows && (nlu.market || brief.market || targetCities.length || home)) {
+    const m = marketOf({ ...brief, market: nlu.market ?? brief.market, cities: [...targetCities, ...(home ? [home] : [])] })
+    targetCities = Array.from(new Set([...targetCities, ...m.cities, ...m.more]))
+  }
   if (!targetCities.length && !questions.some((q) => q.field === 'cities' || q.field === 'market')) {
     if (!nlu.market && !brief.market) {
       questions.push({
@@ -197,7 +207,7 @@ export function route({ campaign, text, attachments, nlu, pinned, usePlaceholder
     }
   }
 
-  if ((intents.includes('create') || intents.includes('test')) && !brief.audience && !nlu.audience && !questions.some((q) => q.field === 'audience') && questions.length < 3) {
+  if ((intents.includes('create') || intents.includes('test')) && !grows && !brief.audience && !nlu.audience && !questions.some((q) => q.field === 'audience') && questions.length < 3) {
     questions.push({
       id: uid('q'),
       field: 'audience',
@@ -230,7 +240,7 @@ export function route({ campaign, text, attachments, nlu, pinned, usePlaceholder
 
   // ── build the shot list ──
   const steps: RouteStep[] = []
-  if (newCreative || (needsCreative && !hasCreative && !writes)) steps.push({ agent: 'read', why: 'read the ad once for every agent' })
+  if (newCreative || (needsCreative && !hasCreative && !writes) || (grows && !hasCreative && !writes)) steps.push({ agent: 'read', why: grows && !newCreative ? 'read what you make' : 'read the ad once for every agent' })
   if (intents.includes('create')) steps.push({ agent: 'create', why: 'profile each region and write ideas' })
   if (writes && needsCreative) steps.push({ agent: 'read', why: 'read the new script for scoring' })
 
@@ -251,6 +261,7 @@ export function route({ campaign, text, attachments, nlu, pinned, usePlaceholder
     }
   }
   if (intents.includes('spend')) steps.push({ agent: 'spend', why: 'split the budget by fit and audience' })
+  if (grows) steps.push({ agent: 'grow', why: 'find where your content lands next' })
 
   targetCities = Array.from(new Set([...(source ? [source] : []), ...targetCities]))
   return { kind: 'run', steps, questions: [], budget: budget ?? undefined, cities: targetCities, sourceCity: source ?? undefined, pinned: mention, confidence: 0.86 }

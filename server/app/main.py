@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from . import cache, config, gemini, imagegen, qloo, regions, supa
 from .agents import adapt as adapt_agent
 from .agents import ask as ask_agent
+from .agents import grow as grow_agent
 from .agents import profile as profile_agent
 from .agents import read as read_agent
 from .agents import talk
@@ -104,7 +105,7 @@ async def read(
     fingerprint = {"text": text, "caption": caption, "name": name, "format": format, "regions": region_names,
                    "file": hashlib.sha256(media[0]).hexdigest() if media else None}
     try:
-        out = await _memo("read:v3", fingerprint, lambda: read_agent.read_creative(
+        out = await _memo("read:niche:v3" if format == "niche" else "read:v3", fingerprint, lambda: read_agent.read_creative(
             text=text or None, media=media, caption=caption or None, name=name or (file.filename if file else None), fmt=format, region_names=region_names))
     except Exception as e:
         _fail(e, "Reading the ad")
@@ -181,6 +182,29 @@ async def adapt(body: AdaptIn):
             instructions=body.instructions, locked=body.locked, focus=body.focus))
     except Exception as e:
         _fail(e, "Adapting the ad")
+
+
+# ── Grow (creators) ─────────────────────────────────────
+
+class GrowIn(BaseModel):
+    creative: dict | None = None
+    niche: str = ""
+    home: str | None = None
+    targets: list[str]
+    regions: list[str] = []
+    fits: dict[str, int] = {}
+    audience: str | None = None
+    brief: dict = {}
+
+
+@app.post("/api/grow")
+async def grow(body: GrowIn):
+    try:
+        return await _memo("grow:v7", body.model_dump(), lambda: grow_agent.grow(
+            creative=body.creative, niche=body.niche, home=body.home, targets=body.targets, region_names=body.regions, fits=body.fits,
+            audience=body.audience, brief=body.brief))
+    except Exception as e:
+        _fail(e, "Planning where to grow")
 
 
 # ── Follow-ups ──────────────────────────────────────────

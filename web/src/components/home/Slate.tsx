@@ -8,7 +8,7 @@ import type { usePrompt } from '../usePrompt'
 type Prompt = ReturnType<typeof usePrompt>
 
 /** The prompt box as a clapperboard slate. Pressing ACTION snaps the clapper shut. */
-export function Slate({ prompt, onAction }: { prompt: Prompt; onAction: () => void }) {
+export function Slate({ prompt, onAction, placeholder }: { prompt: Prompt; onAction: () => void; placeholder?: string }) {
   const [clapping, setClapping] = useState(false)
   const { text, setText, attachments, setAttachments, pinned, setPinned, fileRef, onFiles, mentionOptions, pickMention, canSend } = prompt
   const meta = pinned ? AGENTS[pinned] : undefined
@@ -70,7 +70,7 @@ export function Slate({ prompt, onAction }: { prompt: Prompt; onAction: () => vo
             onKeyDown={onKey}
             rows={3}
             autoFocus
-            placeholder={meta?.placeholder ?? 'Drop an ad, a brief or a budget, and say what you need…'}
+            placeholder={meta?.placeholder ?? placeholder ?? 'Drop an ad, a brief or a budget, and say what you need…'}
             className="w-full resize-none bg-transparent font-sans text-[17px] leading-relaxed text-chalk placeholder:text-chalk-3 focus:outline-none"
             aria-label="Tell the agents what you need"
           />

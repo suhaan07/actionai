@@ -35,6 +35,7 @@ export default function Report() {
   const create = [...c.takes].reverse().find((t) => t.data.kind === 'create')
   const adapts = c.takes.filter((t) => t.data.kind === 'adapt')
   const spend = [...c.takes].reverse().find((t) => t.data.kind === 'spend')
+  const grow = [...c.takes].reverse().find((t) => t.data.kind === 'grow')
   const answers = c.messages.filter((m) => m.role === 'agent' && m.evidenceIds?.length && !m.planId)
   const overrides = adapts.flatMap((t) => (t.data.kind === 'adapt' ? t.data.swaps.filter((s) => s.override).map((s) => ({ city: t.data.kind === 'adapt' ? t.data.city : '', s })) : []))
 
@@ -158,6 +159,43 @@ export default function Report() {
                   ))}
               </tbody>
             </table>
+          </Section>
+        )}
+
+        {grow && grow.data.kind === 'grow' && (
+          <Section title={`Where to grow next${grow.data.home ? ` · from ${grow.data.home}` : ''}`} note="Cities ranked by Qloo fit of the content, weighted by audience size. Not a follower forecast.">
+            <div className="space-y-4">
+              {grow.data.targets.map((city) => {
+                const p = grow.data.kind === 'grow' ? grow.data.plans[city] : undefined
+                const cr = grow.data.kind === 'grow' && grow.data.creativeId ? c.creatives[grow.data.creativeId] : undefined
+                const s = fitOrNull(cr, city)
+                if (!p) return null
+                return (
+                  <div key={city} className="break-inside-avoid border-t border-line pt-3">
+                    <p className="flex items-baseline gap-3">
+                      <span className="font-display text-xl font-extrabold uppercase">{city}</span>
+                      {s !== null && <Score value={s} size="sm" />}
+                      {p.flag && <span className="font-mono text-[10px] uppercase text-fit-low">review before posting</span>}
+                    </p>
+                    <p className="mt-1 font-serif text-[16px] italic">“{p.hook}”</p>
+                    <p className="mt-1 whitespace-pre-line text-[13px]">{p.caption}</p>
+                    <p className="mt-1 text-[12.5px] text-ink-2">{p.hashtags.join(' ')}</p>
+                    <p className="mt-1 text-[12.5px] text-ink-2">
+                      <span className="label mr-1.5">Audio</span>
+                      {p.audio}
+                      <span className="label mx-1.5">Local touch</span>
+                      {p.touch.text}
+                      {p.creators.length > 0 && (
+                        <>
+                          <span className="label mx-1.5">Collab</span>
+                          {p.creators.map((x) => `${x.name} (${x.score})`).join(', ')}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
           </Section>
         )}
 

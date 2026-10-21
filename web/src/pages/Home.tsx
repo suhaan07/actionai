@@ -1,6 +1,8 @@
 import { ArrowRight, Play, Trash2 } from 'lucide-react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AGENTS, AGENT_ORDER, metaOf } from '../lib/agents'
+import { AGENTS, BRAND_AGENTS, CREATOR_COPY, metaOf } from '../lib/agents'
+import type { AgentId } from '../lib/types'
 import { SCENARIOS } from '../lib/demo'
 import { useTour } from '../lib/tour'
 import { useStore } from '../lib/store'
@@ -9,8 +11,36 @@ import { pinLine, Slate } from '../components/home/Slate'
 import { Logo, StatusPill } from '../components/ui'
 import { usePrompt } from '../components/usePrompt'
 
+type Mode = 'brands' | 'creators'
+const CREATOR_AGENTS: AgentId[] = ['grow', 'test', 'adapt', 'spend']
+const CREATOR_EXAMPLES = [
+  { glyph: '↗', t: AGENTS.grow.examples[0] },
+  { glyph: '↗', t: AGENTS.grow.examples[1] },
+  { glyph: '◎', t: 'Will my skincare Reel land in Bengaluru, Pune and Hyderabad?' },
+  { glyph: '⇄', t: 'Rewrite my Delhi food vlog for Kolkata, keep my catchphrase' },
+  { glyph: '?', t: 'Which creators does Chennai love right now?' },
+]
+
+const savedMode = (): Mode => {
+  try {
+    return localStorage.getItem('action-ai:mode') === 'creators' ? 'creators' : 'brands'
+  } catch {
+    return 'brands'
+  }
+}
+
 export default function Home() {
   const nav = useNavigate()
+  const [mode, setModeState] = useState<Mode>(savedMode)
+  const setMode = (m: Mode) => {
+    setModeState(m)
+    try {
+      localStorage.setItem('action-ai:mode', m)
+    } catch {
+      /* private window */
+    }
+  }
+  const creators = mode === 'creators'
   const prompt = usePrompt('slate')
   const { createCampaign, submit } = useStore()
   const startTour = useTour((s) => s.start)
@@ -27,7 +57,9 @@ export default function Home() {
 
   const examples = pinned
     ? AGENTS[pinned].examples.map((t) => ({ glyph: AGENTS[pinned].glyph, t }))
-    : [...AGENT_ORDER.map((a) => ({ glyph: AGENTS[a].glyph, t: AGENTS[a].examples[0] })), { glyph: '?', t: 'Who could be our cricket ambassador in London and Mumbai?' }]
+    : creators
+      ? CREATOR_EXAMPLES
+      : [...BRAND_AGENTS.map((a) => ({ glyph: AGENTS[a].glyph, t: AGENTS[a].examples[0] })), { glyph: '?', t: 'Who could be our cricket ambassador in London and Mumbai?' }]
 
   return (
     <div className="min-h-full">
@@ -44,8 +76,25 @@ export default function Home() {
 
       <main className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
         <section className="pb-10 pt-8 text-center sm:pt-14">
-          <p className="label mb-5 inline-flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-tally tally-blink" /> Four agents · one taste graph · every city
+          <div className="mb-5 inline-flex rounded-full border border-line bg-paper-3 p-1" role="tablist" aria-label="Who is it for">
+            {(['brands', 'creators'] as Mode[]).map((m) => (
+              <button
+                key={m}
+                role="tab"
+                aria-selected={mode === m}
+                data-tour={`mode-${m}`}
+                onClick={() => {
+                  setMode(m)
+                  setPinned(undefined)
+                }}
+                className={`rounded-full px-3.5 py-1 font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] transition ${mode === m ? 'bg-ink text-chalk' : 'text-ink-2 hover:text-ink'}`}
+              >
+                {m === 'brands' ? 'For ad teams' : 'For creators'}
+              </button>
+            ))}
+          </div>
+          <p className="label mb-5 flex items-center justify-center gap-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-tally tally-blink" /> {creators ? 'No brand manager needed · one taste graph · every city' : 'Four agents · one taste graph · every city'}
           </p>
           <h1 className="font-display text-[56px] font-black uppercase leading-[0.86] tracking-[-0.01em] sm:text-[92px] lg:text-[112px]">
             Make it <span className="relative inline-block">land<span className="absolute -bottom-1 left-0 right-0 h-[0.09em] bg-tally" /></span>
@@ -53,7 +102,15 @@ export default function Home() {
             in every city.
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-[16px] leading-relaxed text-ink-2">
-            Know which version of your ad fits which city, and where your budget will work hardest, <em className="font-serif text-[18px] text-ink">before</em> you spend on media. Any city, any market.
+            {creators ? (
+              <>
+                Find the cities your Reels and posts will land in next, and get a hook, caption, hashtags, audio and local creators to collab with for each. Built on Qloo&apos;s taste data, <em className="font-serif text-[18px] text-ink">not</em> guesswork.
+              </>
+            ) : (
+              <>
+                Know which version of your ad fits which city, and where your budget will work hardest, <em className="font-serif text-[18px] text-ink">before</em> you spend on media. Any city, any market.
+              </>
+            )}
           </p>
           <div className="mx-auto mt-6 flex flex-wrap items-center justify-center gap-2">
             <button
@@ -72,11 +129,11 @@ export default function Home() {
           </div>
         </section>
 
-        <Slate prompt={prompt} onAction={action} />
+        <Slate prompt={prompt} onAction={action} placeholder={creators ? 'Drop a Reel or post, or say what you make and where you’re based…' : undefined} />
 
         <div className="mx-auto mt-4 max-w-3xl">
           <p className="min-h-[20px] text-center text-[13px] text-ink-2">
-            {pinned ? pinLine(pinned) : 'Just type. The router reads what you need and sends it to the right agent, or several in a row.'}
+            {pinned ? pinLine(pinned) : creators ? 'Attach a Reel or post, or just say what you make and where you’re based.' : 'Just type. The router reads what you need and sends it to the right agent, or several in a row.'}
           </p>
           <div className="mt-3 flex flex-wrap justify-center gap-2">
             {examples.map((ex) => (
@@ -96,13 +153,21 @@ export default function Home() {
           <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="label">The crew</p>
-              <h2 className="font-display text-4xl font-black uppercase leading-none">What the agents do</h2>
+              <h2 className="font-display text-4xl font-black uppercase leading-none">{creators ? 'What it does for creators' : 'What the agents do'}</h2>
             </div>
             <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-3">
-              Create → Test → Adapt → Spend <span className="text-ink-2">· or any one alone</span>
+              {creators ? (
+                <>
+                  Grow → Test → Adapt → Boost <span className="text-ink-2">· Instagram, TikTok, Shorts</span>
+                </>
+              ) : (
+                <>
+                  Create → Test → Adapt → Spend <span className="text-ink-2">· or any one alone</span>
+                </>
+              )}
             </p>
           </div>
-          <AgentCards pinned={pinned} onPick={(a) => setPinned(pinned === a ? undefined : a)} />
+          <AgentCards ids={creators ? CREATOR_AGENTS : BRAND_AGENTS} copy={creators ? CREATOR_COPY : undefined} pinned={pinned} onPick={(a) => setPinned(pinned === a ? undefined : a)} />
           <p className="mt-4 text-[12.5px] text-ink-3">
             Every score, insight and swap links to the Qloo taste data behind it. Fit scores are pre-testing, not A/B tests; budget splits are a starting point, not a forecast.
           </p>

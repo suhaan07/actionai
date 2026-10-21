@@ -1,5 +1,5 @@
 // Backend client. Every Qloo and Gemini call goes through the FastAPI server; no keys in the browser.
-import type { AgentId, Attachment, Campaign, CityProfile, CityWrite, Creative, Evidence, Master, Persona, Swap, Understanding } from './types'
+import type { AgentId, Attachment, Campaign, CityProfile, CityWrite, Creative, Evidence, GrowPlan, Master, Persona, Swap, Understanding } from './types'
 
 export const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:8000'
 
@@ -43,10 +43,10 @@ export const api = {
 
   understand: (text: string, context: string) => post<Understanding>('/api/understand', { text, context }),
 
-  read: (input: { text?: string; attachment?: Attachment; regions: string[]; name?: string }) => {
+  read: (input: { text?: string; attachment?: Attachment; regions: string[]; name?: string; niche?: boolean }) => {
     const f = new FormData()
     f.set('text', input.text ?? '')
-    f.set('format', input.attachment?.format ?? 'script')
+    f.set('format', input.attachment?.format ?? (input.niche ? 'niche' : 'script'))
     f.set('name', input.name ?? input.attachment?.name ?? '')
     f.set('regions_json', JSON.stringify(input.regions))
     const file = input.attachment && fileStore.get(input.attachment.id)
@@ -74,6 +74,17 @@ export const api = {
     locked?: string[]
     focus?: string | null
   }) => post<{ swaps: Swap[]; evidence: Evidence[]; reply?: string; newRefs?: Creative['refs'] }>('/api/adapt', body),
+
+  grow: (body: {
+    creative?: Creative
+    niche: string
+    home?: string
+    targets: string[]
+    regions: string[]
+    fits: Record<string, number>
+    audience?: string
+    brief: Record<string, unknown>
+  }) => post<{ reply: string; cities: Record<string, GrowPlan>; profiles: Record<string, CityProfile>; evidence: Evidence[] }>('/api/grow', body),
 
   explain: (question: string, creative: Creative | undefined, extra = '') => post<{ text: string; ref_ids: string[] }>('/api/explain', { question, creative, extra }),
 

@@ -1,6 +1,6 @@
 # Action AI — Devpost submission text
 
-**Tagline (short description):** Creative intelligence that makes every ad land in every city, powered by Qloo's taste graph.
+**Tagline (short description):** Creative intelligence that makes every ad, and every Reel, land in every city, powered by Qloo's taste graph.
 
 ---
 
@@ -8,16 +8,19 @@
 
 A brand makes one hero ad and stretches it across a country. In India, a campaign built on Punjabi weddings, Bollywood and Delhi street food lands flat in Chennai. In the US, a Nashville country spot means little in Miami. Regional versions are usually just translated, the strategic insight comes from gut feel, and media budgets are split by population. Testing ads for regional fit means survey panels: slow, expensive, and only ever run on the final cut.
 
+Creators have it worse. A Gen Z food vlogger in Delhi or a thrift-fit TikToker in Atlanta wants to reach the next city but has no brand manager, no research budget and no data, only guesses about what Mumbai or Chicago will watch.
+
 We wanted a tool that answers, before any money is spent: *will this version work in that city, what should change, and where should the budget go?* Qloo's taste graph is the first data source that can answer that across music, film, TV, brands, people and places, city by city.
 
 ## What it does
 
-Action AI is a team of agents behind one prompt box. A router reads the request, in any wording, and runs the right agents in order, shown as a live shot list.
+Action AI is a team of agents behind one prompt box, for ad teams and for creators. A router reads the request, in any wording, and runs the right agents in order, shown as a live shot list.
 
 - **Create:** from a brief to each city's Qloo taste profile, three insights and three routes per city, a master script, an Instagram post design, Reel ideas, tie-ins and a production brief. If the brief contains an assumption ("make it for Chennai with Hindi songs, they'll love it"), Qloo checks it first. Hindi music scores 47 in Chennai, the lowest of six cities, so Action AI says so and builds on what Chennai does over-index on.
 - **Test:** upload a script, image, video or Reel. Gemini finds every cultural reference; Qloo scores each one per city. Click a city and the script recolours. Simulated personas, each built from a real Qloo taste cluster, react to it.
 - **Adapt:** every weak reference is swapped for what holds the same cultural slot in the target city. Each swap must score higher in Qloo than the original, explains why, passes a sensitivity check, and can be accepted or rejected line by line. Sponsors and anything you say to keep stay locked. AI mock-ups show the before and after.
 - **Spend:** a starting budget split by cultural fit × audience size ÷ CPM, "fix before you spend" flags for big cities where the ad fits badly, a targeting pack, creator suggestions and a Meta Ads Manager CSV.
+- **Grow (for creators):** "I make street food Reels in Delhi. Which cities would love my content next?" Grow reads the niche, scores it across the market (Delhi 89 at home; Jaipur 86, Mumbai 84, Kolkata 84 next; Kochi 45) and writes a post plan for each city: a hook aimed at that city ("Kolkata, who's up for a chaat showdown?"), a caption, hashtags people there search, a sound from that city's music list, one local touch with its Qloo evidence, and the creators that city's audience over-indexes on to duet, stitch or collab with. A switch on the home page turns the whole app into a creator tool.
 - **Ask:** any question Qloo can answer. "Maybe Virat Kohli as our cricket ambassador in London and Mumbai?" returns 72 in London, 100 in Mumbai, plus Qloo's own cricketers for each city (Ben Stokes for London, Hardik Pandya for Mumbai).
 
 Every score, insight and swap has a footnote that opens the Qloo entities, per-city affinity and the exact API calls behind it. A shareable report turns the campaign into one page for a boss or client.
@@ -32,6 +35,7 @@ It works for India, the US and the UK out of the box, and for any city, town or 
 - **Scoring:** Qloo heatmaps (`filter.type=urn:heatmap`) for each signal, averaged over each city's radius. Cities in one country use that country's heatmap; cities across countries use a world polygon, so London and Mumbai compare fairly.
 - **Profiles:** `/v2/insights` per entity type with `signal.location.query`, plus music and media genre tags per city, with items shared by every city removed so each profile shows what is distinctive.
 - **Towns and states:** destinations resolved through `/search`, then queried as `signal.location` POINT + radius.
+- **Grow:** the creator's content is scored by heatmap across the whole market, ranked by fit² × √audience; target cities get their `/v2/insights` lists, and their top 100 public figures are filtered to Qloo's social-creator occupation tags and scored by heatmap. Hashtags that are just a celebrity's or brand's name are filtered out in code.
 - **People:** Qloo's occupation tags (Cricketer, Influencer…) find the most popular people in a field; `/v2/insights` ranks people around them per city; results are kept only if Qloo tags them with that occupation. Named candidates are scored by their own heatmap.
 - **Personas:** `signal.demographics.age` and `gender` per city give each simulated persona a real taste cluster.
 - **Router:** one structured-output call turns a message into intents, regions, market, budget, deliverables, things to keep, things to change, assumptions to check and clarifying questions, with memory of the last few messages.
@@ -49,10 +53,10 @@ It works for India, the US and the UK out of the box, and for any city, town or 
 
 ## Accomplishments that we're proud of
 
-- A full product, not a demo script: four agents plus Ask that chain themselves, a guided tour in two markets, evidence on every number, a shareable report and a Meta export.
+- A full product, not a demo script: four agents plus Grow and Ask that chain themselves, a creator mode, a guided tour in two markets, evidence on every number, a shareable report and a Meta export.
 - It disagrees with you when the data does: wrong assumptions get a number, not a polite yes.
 - Every swap must beat the original in Qloo's data before it is proposed.
-- It works beyond the metros, across countries, and for cause campaigns as well as products.
+- It works beyond the metros, across countries, for cause campaigns as well as products, and for solo creators as well as agencies.
 
 ## What we learned
 
@@ -79,6 +83,7 @@ Qloo API · Gemini 2.5 Flash · Groq (gpt-oss-120b) · Pollinations (FLUX) · Fa
    - `Launching a canned cold coffee for college students in Mumbai, Bengaluru and Kolkata: insights, a script and 3 Reel ideas`
    - `Make our coffee ad for Chennai with Hindi songs, they'll love it`
    - `Who could be our cricket ambassador in London and Mumbai?`
+   - Switch to **For creators** and try `I make street food Reels in Delhi. Which cities would love my content next?`
    - Upload any ad image or short video and ask `Will this work in New York, Atlanta and Miami?`
 4. Click any small number next to a claim to see the Qloo data behind it. **Share report** opens a one-page summary.
 

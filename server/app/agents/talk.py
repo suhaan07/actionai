@@ -91,7 +91,7 @@ class Claim(BaseModel):
 
 
 class Understanding(BaseModel):
-    intents: list[Literal["create", "test", "adapt", "spend"]] = Field(description="Every agent needed, in order. create=write ideas/scripts/posts from a brief, test=score ads per region, adapt=make an ad fit other regions, spend=split a budget")
+    intents: list[Literal["create", "test", "adapt", "spend", "grow"]] = Field(description="Every agent needed, in order. create=write ideas/scripts/posts from a brief, test=score ads per region, adapt=make an ad fit other regions, spend=split a budget, grow=a creator or small brand growing their own social reach into new cities")
     explain: bool = Field(description="True only for a follow-up question about results already produced (why did X score low, what is dragging it), not a new task")
     ask: bool = Field(default=False, description="True for a question to answer from taste data that is not one of the four tasks, e.g. who could be our brand ambassador, which films could we tie in with, what do parents in Pune watch")
     deliverables: list[Literal["script", "social_post", "reel", "video", "ideas"]] = Field(default_factory=list, description="What THIS message asks Create to produce: an ad script, an Instagram/Facebook post design (social_post), Reel or short-video ideas (reel)")
@@ -116,9 +116,16 @@ class Understanding(BaseModel):
     questions: list[Ask] = Field(default_factory=list, description="At most 3 clarifying questions, only for missing information the requested agents need")
 
 
-UNDERSTAND_SYSTEM = """You route requests for Action AI, a four-agent tool for ad teams in any market:
+UNDERSTAND_SYSTEM = """You route requests for Action AI, a tool for ad teams and creators in any market:
 Create (writes insights, ad scripts and social post designs from a brief), Test (scores ads per region with Qloo taste data),
-Adapt (makes an ad fit other regions), Spend (splits a budget across regions).
+Adapt (makes an ad fit other regions), Spend (splits a budget across regions), and Grow (for creators and small brands with no
+media team: which cities their own Reels, posts or channel will land in next, with a caption, hashtags and local collabs per city).
+GROW RULE (check this first): when someone describes what THEY make or post (Reels, TikToks, vlogs, a page, a channel) and asks
+where else it would land, which cities would like it, or how to grow or reach more people, intents is ['grow'] and ask is false.
+e.g. "I make street food Reels in Delhi. Which cities would love my content next?" → intents ['grow'], source_region 'Delhi',
+regions ['Delhi'], market 'India', ask false. A city they say they're from or post in is source_region (and in regions).
+If they name the cities to check ("will my Reel land in Pune and Hyderabad?"), that is test, not grow: grow is for finding where.
+Grow never needs a budget, audience or region question unless the market is unknown.
 
 Extract the fields. Choose every intent the user asks for, in order; a request to write an ad and then test it is create + test.
 When adapting, anything the user wants kept goes in constraints, and the parts they want changed go in focus.

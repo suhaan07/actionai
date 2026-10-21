@@ -76,8 +76,23 @@ _CREATOR_OCCUPATIONS = {"influencer", "youtuber", "content creator", "vlogger", 
                         "stand-up comedian", "internet celebrity", "social media influencer", "blogger", "podcaster"}
 
 
-def _is_creator(e: dict) -> bool:
-    return any((t.get("id") or "").startswith("urn:tag:occupation:") and (t.get("name") or "").strip().lower() in _CREATOR_OCCUPATIONS for t in e.get("tags") or [])
+# Creators a small creator could realistically collab with: people who make social content, not TV personalities.
+_SOCIAL_OCCUPATIONS = {"influencer", "youtuber", "content creator", "vlogger", "video blogger", "internet celebrity", "social media influencer",
+                       "instagrammer", "tiktoker", "streamer"}
+
+
+def _is_creator(e: dict, occupations: set[str] = _CREATOR_OCCUPATIONS) -> bool:
+    return any((t.get("id") or "").startswith("urn:tag:occupation:") and (t.get("name") or "").strip().lower() in occupations for t in e.get("tags") or [])
+
+
+async def local_creators(region: dict, take: int = 10, social_only: bool = False) -> list[dict]:
+    """Social creators a region's audience over-indexes on: its own top 100 public figures, kept if Qloo tags them as creators."""
+    p = {"filter.type": "urn:entity:person", **regions.location_params(region)}
+    people = []
+    for page in (1, 2):
+        people += await qloo.insights({**p, "take": 50, "page": page})
+    occ = _SOCIAL_OCCUPATIONS if social_only else _CREATOR_OCCUPATIONS
+    return [_row(e, "urn:entity:person") for e in people if _is_creator(e, occ)][:take]
 
 
 async def _occupation(word: str) -> tuple[dict | None, list[dict]]:
@@ -128,11 +143,7 @@ async def ask(question: str, brief: dict, region_names: list[str], audience: str
             return lk, region["name"], [{"id": t["id"], "name": t["name"].strip(), "type": "urn:tag:genre:music", "kind": "tag"} for t in items if t.get("id")], False
         p = {"filter.type": f"urn:entity:{lk.type}", **loc, "take": 10}
         if creator_mode and lk.type == "person":
-            people = []
-            for page in (1, 2):
-                people += await qloo.insights({**p, "take": 50, "page": page})
-            items = [e for e in people if _is_creator(e)]
-            return lk, region["name"], [_row(e, f"urn:entity:{lk.type}") for e in items[:10]], "creators"
+            return lk, region["name"], await local_creators(region), "creators"
         seed_ids = seeds_for(region) if lk.type == "person" else []
         if seed_ids:
             # On-topic: what this city's audience pairs with the topic's own people, filtered by Qloo's occupation tag.

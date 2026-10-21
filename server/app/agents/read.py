@@ -49,8 +49,14 @@ Rules:
 - Proxies must be famous enough to exist in a global taste database. Prefer titles and brands from the culture the cue comes from."""
 
 
-async def extract(text: str | None, media: tuple[bytes, str] | None, caption: str | None, name: str | None) -> Extraction:
-    parts: list = []
+NICHE_HINT = """This is not an ad: a creator is describing what they post. Write `text` as 2–3 plain sentences describing a typical
+post of theirs, naming the cultural references that content carries: the dishes, places, scenes, music and styles it names or clearly
+implies (for "street food Reels in Delhi": the chaat and paratha stalls, Old Delhi lanes, the vendors). Then list 3–6 of them as cues,
+copied verbatim from your `text`. A bare city name that only says where they are based is not a cue; "Old Delhi street food" is."""
+
+
+async def extract(text: str | None, media: tuple[bytes, str] | None, caption: str | None, name: str | None, niche: bool = False) -> Extraction:
+    parts: list = [NICHE_HINT] if niche else []
     if media:
         parts.append(await gemini.media_part(*media))
         parts.append(f"This is an ad creative{f' named {name}' if name else ''}. Read the visuals, on-screen text, speech and music.")
@@ -59,7 +65,7 @@ async def extract(text: str | None, media: tuple[bytes, str] | None, caption: st
     if caption:
         parts.append(f"Caption and hashtags:\n{caption}")
     out = await gemini.json_call(Extraction, SYSTEM, parts, temperature=0.2)
-    if text and not media:
+    if text and not media and not niche:
         out.text = text  # keep the user's script exactly as written
     return out
 
@@ -91,12 +97,20 @@ async def _resolve_genre(phrase: str) -> dict | None:
         return None
     return {"kind": "tag", "id": best["id"], "name": best["name"], "type": "urn:tag:genre:music"}
 
-async def _resolve_named(name: str, qtype: str) -> dict | None:
+def _words(s: str) -> set[str]:
+    return {w for w in "".join(ch.lower() if ch.isalnum() else " " for ch in s).split() if len(w) > 2}
+
+
+async def _resolve_named(name: str, qtype: str, strict: bool = False) -> dict | None:
     if qtype == "music_genre":
         return await _resolve_genre(name)
     if qtype == "none":
         return None
     hits = await qloo.search(name, types=f"urn:entity:{qtype}", take=3)
+    if strict:
+        # A proxy the model made up ("Paratha Street Vendor") makes search return whatever is closest (a cosmetics brand):
+        # only accept a hit that shares a word with the name asked for.
+        hits = [h for h in hits if _words(h["name"]) & _words(name)]
     if not hits:
         return None
     h = hits[0]
@@ -109,7 +123,7 @@ async def resolve_cue(cue: Cue) -> list[dict]:
         s = await _resolve_named(cue.search, cue.qloo_type)
         if s:
             return [s]
-    found = await asyncio.gather(*[_resolve_named(p.name, p.qloo_type) for p in cue.proxies[:3]])
+    found = await asyncio.gather(*[_resolve_named(p.name, p.qloo_type, strict=True) for p in cue.proxies[:3]])
     out, seen = [], set()
     for s in found:
         if s and s["id"] not in seen:
@@ -157,7 +171,7 @@ def _evidence(cue: Cue, per: list[dict], via_proxy: bool) -> dict:
 
 
 async def read_creative(*, text: str | None, media: tuple[bytes, str] | None, caption: str | None, name: str | None, fmt: str, region_names: list[str]) -> dict:
-    ex = await extract(text, media, caption, name)
+    ex = await extract(text, media, caption, name, niche=fmt == "niche")
     region_list = [r for r in await asyncio.gather(*[regions.resolve(n) for n in region_names]) if r]
 
     async def one(cue: Cue):
@@ -201,7 +215,7 @@ async def read_creative(*, text: str | None, media: tuple[bytes, str] | None, ca
     creative = {
         "id": f"cr_{uuid.uuid4().hex[:10]}",
         "name": name or ex.name,
-        "format": fmt,
+        "format": "script" if fmt == "niche" else fmt,
         "text": ex.text,
         "refs": refs,
     }

@@ -210,7 +210,8 @@ export const useStore = create<State>()(
           c.busy = true
           c.brief.cities = Array.from(new Set([...c.brief.cities, ...cities]))
           if (budget) c.brief.budget = budget
-          if (!c.brief.audience) c.brief.audience = '22–35'
+          // Creators growing their reach default to Gen Z; ad campaigns to young adults.
+          if (!c.brief.audience) c.brief.audience = nlu.intents.includes('grow') ? '18–24' : '22–35'
           c.messages.push(msg({ role: 'agent', text: '', planId: plan.id }))
         })
 

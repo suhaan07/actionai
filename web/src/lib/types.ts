@@ -1,4 +1,4 @@
-export type AgentId = 'create' | 'test' | 'adapt' | 'spend'
+export type AgentId = 'create' | 'test' | 'adapt' | 'spend' | 'grow'
 export type StepAgent = AgentId | 'read'
 
 /** India's default metros (kept for the tour and as the fallback market). Any city worldwide can be added. */
@@ -141,6 +141,27 @@ export interface Master {
   flag?: SensitivityFlag | null
 }
 
+// ── Grow (creators) ─────────────────────────────────────
+
+export interface GrowCreator {
+  name: string
+  id: string
+  about?: string
+  score: number
+  evidenceId: string
+}
+
+/** One city's post plan for a creator growing into it. */
+export interface GrowPlan {
+  hook: string
+  caption: string
+  hashtags: string[]
+  audio: string
+  touch: { text: string; basis: string[]; evidenceId: string | null }
+  creators: GrowCreator[]
+  flag?: SensitivityFlag
+}
+
 export interface Persona {
   band: string
   likes: string[]
@@ -154,6 +175,7 @@ export type TakeData =
   | { kind: 'adapt'; sourceId: string; adaptedId: string; city: City; swaps: Swap[] }
   | { kind: 'spend'; budget: number; cities: City[]; creativeIds: string[] }
   | { kind: 'create'; cities: City[]; master?: Master }
+  | { kind: 'grow'; creativeId?: string; home?: City; cities: City[]; targets: City[]; plans: Record<string, GrowPlan> }
 
 export interface Take {
   id: string

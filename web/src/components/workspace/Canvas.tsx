@@ -5,6 +5,7 @@ import { marketOf } from '../../lib/regions'
 import type { Campaign, Creative } from '../../lib/types'
 import { AdaptView } from '../views/AdaptView'
 import { CreateView } from '../views/CreateView'
+import { GrowView } from '../views/GrowView'
 import { ReadoutView } from '../views/ReadoutView'
 import { SpendView } from '../views/SpendView'
 import { TestView } from '../views/TestView'
@@ -77,6 +78,7 @@ function TakeBody({ c, takeId }: { c: Campaign; takeId: string }) {
   if (d.kind === 'adapt') body = <AdaptView c={c} take={take} />
   if (d.kind === 'spend') body = <SpendView c={c} cities={d.cities} />
   if (d.kind === 'create') body = <CreateView c={c} cities={d.cities} master={d.master} />
+  if (d.kind === 'grow') body = <GrowView c={c} creative={d.creativeId ? c.creatives[d.creativeId] : undefined} home={d.home} cities={d.cities} targets={d.targets} plans={d.plans} />
 
   return (
     <div className="rise mx-auto max-w-[1200px]">
@@ -96,7 +98,7 @@ function QuietOnSet({ c }: { c: Campaign }) {
         Quiet on set<span className="text-tally">.</span>
       </h2>
       <p className="mx-auto mt-4 max-w-sm text-[14px] text-ink-2">
-        {busy ? 'The agents are getting ready. Results appear here as takes.' : 'Tell the agents what you need on the left. The router sends it to Create, Test, Adapt or Spend, and every result lands here as a take.'}
+        {busy ? 'The agents are getting ready. Results appear here as takes.' : 'Tell the agents what you need on the left. The router sends it to Create, Test, Adapt, Spend or Grow, and every result lands here as a take.'}
       </p>
       {!busy && (
         <div className="mt-6 grid gap-2 text-left sm:grid-cols-2">

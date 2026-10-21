@@ -85,7 +85,7 @@ export function FitBar({ value, ghost }: { value: number; ghost?: number }) {
   )
 }
 
-export function Footnote({ n, evidenceId }: { n: number; evidenceId: string }) {
+export function Footnote({ n, evidenceId }: { n: number | string; evidenceId: string }) {
   const open = useStore((s) => s.openEvidence)
   const active = useStore((s) => s.evidenceId === evidenceId)
   return (

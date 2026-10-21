@@ -32,13 +32,17 @@ async def json_call(schema: type[T], system: str, text: str, temperature: float 
         f"{json.dumps(schema.model_json_schema())}"
     )
     last: Exception | None = None
+    # The free tier caps tokens per minute (8K on the 120B model), counting the prompt plus the answer allowance, so a big
+    # prompt with a fixed 4K allowance is refused outright. Size the allowance to fit.
+    prompt_tokens = (len(instructions) + len(text)) // 3
+    allowance = max(1500, min(4096, 7600 - prompt_tokens))
     for model in config.GROQ_MODELS:
         body = {
             "model": model,
             "messages": [{"role": "system", "content": instructions}, {"role": "user", "content": text}],
             "temperature": temperature,
             "response_format": {"type": "json_object"},
-            "max_completion_tokens": 4096,
+            "max_completion_tokens": allowance,
         }
         if model.startswith("openai/gpt-oss"):
             body["reasoning_effort"] = "low"  # fewer tokens against the per-minute limit
@@ -51,7 +55,7 @@ async def json_call(schema: type[T], system: str, text: str, temperature: float 
                 continue
             if r.status_code in (429, 503, 498):
                 left = r.headers.get("x-ratelimit-remaining-tokens"), r.headers.get("x-ratelimit-remaining-requests")
-                log.warning("groq %s busy (%s, remaining tokens/requests %s)", model, r.status_code, left)
+                log.warning("groq %s busy (%s, remaining tokens/requests %s, prompt ~%s + allowance %s): %s", model, r.status_code, left, prompt_tokens, allowance, r.text[:160])
                 last = GroqBusy(r.text[:200])
                 break  # try the next model
             if r.status_code != 200:
