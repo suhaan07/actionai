@@ -1,0 +1,36 @@
+{
+  "_note": "Curated categories the sensitivity check looks for. It flags for human review; it never certifies an ad as safe.",
+  "global": [
+    "Religious imagery, places of worship or sacred figures placed next to a product, used as a sales prop, or shown disrespectfully",
+    "Religious festivals or mourning observances used for selling in a way that trivialises them",
+    "Race, ethnicity, caste or tribe: stereotypes, jokes, colourism or 'fairness as aspiration', and casting that tokenises",
+    "Regional, language or national rivalries; mocking accents or dialects",
+    "Political parties, leaders, flags, protest movements or slogans; anything that reads as taking a side in a live political issue",
+    "National symbols (flags, anthems, emblems, maps) used commercially or altered; this can also be illegal",
+    "Food taboos tied to religion or culture (e.g. beef, pork, alcohol, non-vegetarian food in vegetarian settings)",
+    "Body shaming, disability as a joke, mental health trivialised",
+    "Gender stereotypes, and in rights campaigns anything that blames victims, sensationalises violence, or shows identifiable survivors",
+    "Children in unsafe situations or adult themes; advertising unhealthy food or toys directly to young children",
+    "Misinformation about health, law or rights; promises a campaign cannot keep",
+    "Firearms, drugs, alcohol or gambling where the audience or law makes them inappropriate"
+  ],
+  "countries": {
+    "India": ["Caste references and surnames as markers", "Hindi imposition and North-vs-South framing", "Hindu–Muslim framing; communal imagery", "Beef in Hindu or Jain contexts, pork in Muslim contexts"],
+    "United States": ["Race and policing, immigration and border politics", "Guns and violence imagery", "Partisan politics in an election cycle", "Religious holidays framed as universal", "Native American imagery and mascots"],
+    "United Kingdom": ["Class stereotypes and regional accents as jokes", "The monarchy, national flags and football rivalries", "Northern Ireland and sectarian symbols", "Immigration framing"]
+  },
+  "regional": {
+    "Chennai": ["Tamil identity and language pride", "Temple imagery is especially sensitive next to products"],
+    "Kolkata": ["Durga Puja idols and pandals near products", "Bengali identity vs Hindi-belt framing"],
+    "Mumbai": ["Marathi identity and language politics", "Ganpati festival imagery near products"],
+    "Bengaluru": ["Kannada language pride; local vs migrant framing"],
+    "Delhi": ["Partition and religion-based framing", "Punjabi or Jat stereotypes"],
+    "Lucknow": ["Hindu–Muslim framing; Awadhi culture shown as only Muslim or only Hindu"],
+    "Hyderabad": ["Telangana identity; Hindu–Muslim framing"],
+    "Patna": ["Bihari stereotypes (migrant labour, accent jokes)"],
+    "Atlanta": ["Black culture used as aesthetic without Black voices"],
+    "Miami": ["Latin American communities flattened into one culture"],
+    "Glasgow": ["Scottish identity treated as English; Old Firm football sectarianism"],
+    "rural": ["Condescension toward rural people; showing rural women only as victims; land and caste issues; local dialect mocked"]
+  }
+}

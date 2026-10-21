@@ -1,0 +1,11 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# deps and builds
+node_modules/
+dist/
+__pycache__/
+.venv/
+.cache/
