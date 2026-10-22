@@ -28,7 +28,12 @@ language, in one or two sentences. Only mention things from the persona's own li
 async def personas(region: str, audience: str | None, creative: dict) -> dict:
     region = regions.canonical(region)
     buckets = (qloo.age_param(audience) or "25_to_29,30_to_34").split(",")
-    bands = [(buckets[0], "female"), (buckets[min(1, len(buckets) - 1)], "male"), (buckets[-1], "female")]
+    if len(buckets) == 1:
+        # One age band (e.g. 18–24): both genders in it, plus the next band up, so the three personas differ.
+        nxt = qloo.AGE_BANDS[min(qloo.AGE_BANDS.index(buckets[0]) + 1, len(qloo.AGE_BANDS) - 1)] if buckets[0] in qloo.AGE_BANDS else buckets[0]
+        bands = [(buckets[0], "female"), (buckets[0], "male"), (nxt, "female")]
+    else:
+        bands = [(buckets[0], "female"), (buckets[min(1, len(buckets) - 1)], "male"), (buckets[-1], "female")]
     rr = await regions.resolve(region)
     loc = regions.location_params(rr) if rr else {"signal.location.query": region}
 

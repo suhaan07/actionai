@@ -58,7 +58,7 @@ export interface SplitRow {
 
 export const DEFAULT_CPM = 120 // INR; other markets pass their own via opts.defaultCpm
 
-/** Starting split: fit² × audience ÷ CPM, with a 10% floor per region. Not a forecast. */
+/** Starting split: fit² × audience ÷ CPM, with a test floor of up to 10% per region. Not a forecast. */
 export function splitBudget(
   creatives: Creative[],
   cities: City[],
@@ -75,17 +75,20 @@ export function splitBudget(
     }
     return { city, creativeId: best.id, fit: best.fit, audience: audienceOf(city, opts.reach), cpm: opts.cpm?.[city] ?? opts.defaultCpm ?? DEFAULT_CPM }
   })
-  const floor = cities.length * minShare <= 1 ? minShare : 1 / cities.length
+  // A test floor per region, shrinking with many regions so it never eats the whole budget.
+  const floor = Math.min(minShare, 0.5 / cities.length)
   const base = opts.defaultCpm ?? DEFAULT_CPM
   const weights = rows.map((r) => ((r.fit / 100) ** 2 * r.audience) / (r.cpm / base))
   const total = weights.reduce((a, b) => a + b, 0) || 1
   const rest = 1 - floor * cities.length
+  // Round to a sensible unit: 500 for campaign budgets, finer for a creator's small boost (a $500 split shouldn't round to $0).
+  const unit = budget >= 1e5 ? 500 : Math.max(1, 10 ** (Math.floor(Math.log10(Math.max(budget, 1))) - 2))
   return rows.map((r, i) => {
     const share = floor + rest * (weights[i] / total)
     return {
       ...r,
       share,
-      amount: Math.round((budget * share) / 500) * 500,
+      amount: Math.round((budget * share) / unit) * unit,
       flag: r.audience >= 3.5 && r.fit < 50,
     }
   })

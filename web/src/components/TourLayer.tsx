@@ -2,7 +2,7 @@ import { ArrowRight, Check, ChevronLeft, X } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '../lib/store'
-import { firstOfScene, markAsked, SCENES, useTour } from '../lib/tour'
+import { firstOfScene, markAsked, useTour } from '../lib/tour'
 
 type Rect = { top: number; left: number; width: number; height: number }
 
@@ -14,7 +14,7 @@ const find = (sel: string, pick: 'first' | 'last' = 'first'): HTMLElement | null
 
 /** The interactive product tour: spotlight + anchored card; the judge does every click. */
 export function TourLayer() {
-  const { active, i, run, steps: TOUR, campaignId, next, back, stop, go, setCampaign, setDraft } = useTour()
+  const { active, i, run, steps: TOUR, scenes: SCENES, campaignId, next, back, stop, go, setCampaign, setDraft } = useTour()
   const loc = useLocation()
   const nav = useNavigate()
   const campaign = useStore((s) => (campaignId ? s.campaigns[campaignId] : undefined))

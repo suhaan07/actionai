@@ -156,7 +156,7 @@ class PersonasIn(BaseModel):
 @app.post("/api/personas")
 async def personas(body: PersonasIn):
     try:
-        return await _memo("personas", body.model_dump(), lambda: talk.personas(body.region, body.audience, body.creative))
+        return await _memo("personas:v2", body.model_dump(), lambda: talk.personas(body.region, body.audience, body.creative))
     except Exception as e:
         _fail(e, "Building the persona panel")
 

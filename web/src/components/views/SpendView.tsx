@@ -43,7 +43,7 @@ export function SpendView({ c, cities }: { c: Campaign; cities: City[] }) {
           <button onClick={() => downloadMetaCsv(c, cities, budget)} className="btn-ink float-right ml-4" data-tour="meta-export">
             Download for Meta Ads Manager
           </button>
-          A <strong>starting split</strong> from Qloo cultural fit × audience size ÷ CPM, with a 10% test floor per region. It is not a forecast: shift budget after 3–5 days of real results.
+          A <strong>starting split</strong> from Qloo cultural fit × audience size ÷ CPM, with a test floor of up to 10% per region. It is not a forecast: shift budget after 3–5 days of real results.
         </p>
       </div>
 

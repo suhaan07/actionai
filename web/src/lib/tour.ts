@@ -22,12 +22,21 @@ export interface TourStep {
   place?: 'top' | 'bottom' | 'left' | 'right'
 }
 
-export const SCENES = [
+export type Scene = { glyph: string; name: string }
+
+export const SCENES: Scene[] = [
   { glyph: '✦', name: 'Create' },
   { glyph: '◎', name: 'Test' },
   { glyph: '⇄', name: 'Adapt' },
   { glyph: '?', name: 'Ask' },
   { glyph: '▤', name: 'Spend' },
+]
+
+export const CREATOR_SCENES: Scene[] = [
+  { glyph: '↗', name: 'Grow' },
+  { glyph: '◎', name: 'Pre-test' },
+  { glyph: '⇄', name: 'Rewrite' },
+  { glyph: '▤', name: 'Boost' },
 ]
 
 const has = (c: Campaign | undefined, kind: string) => !!c && !c.busy && c.takes.some((t) => t.data.kind === kind)
@@ -41,7 +50,152 @@ export const promptsFor = (sc: Scenario) => ({
   spend: `Split ${sc.budgetText} across our five cities.`,
 })
 
+/** The creator tour: one solo creator, no ad team. Grow → pre-test → rewrite for a weak city → a small boost. */
+export function buildCreatorTour(sc: Scenario): TourStep[] {
+  const india = sc.id === 'creator-india'
+  const what = india ? 'street food Reels' : 'thrift-fit TikToks'
+  return [
+    {
+      id: 'start',
+      scene: 0,
+      target: '[data-tour="slate-action"]',
+      title: 'Meet a creator with no ad team',
+      body: `${india ? 'A Delhi creator who makes street food Reels' : 'An Atlanta creator who posts thrift-fit TikToks'} (fictional) wants to reach the next city. No brand manager, no research budget: just one line. Press ACTION.`,
+      mode: 'click',
+      draft: { surface: 'slate', text: sc.script, pinned: 'grow' },
+      place: 'bottom',
+    },
+    {
+      id: 'grow-map',
+      scene: 0,
+      target: '[data-tour="grow-map"]',
+      title: 'Where the content lands',
+      body: `Grow read what they make and scored it in every big city with Qloo. ${sc.home} is home; the cities marked Grow next are where the same ${what} already fit, weighted by how many people live there.`,
+      mode: 'next',
+      ready: (c) => has(c, 'grow'),
+      place: 'bottom',
+    },
+    {
+      id: 'grow-who',
+      scene: 0,
+      target: '[data-tour="grow-who"]',
+      title: 'Who the fans really are',
+      body: 'Qloo’s age and gender skew of the people who love these references. If it pulls older than the creator’s Gen Z audience, the hooks below lean younger.',
+      mode: 'next',
+      skipIf: () => !document.querySelector('[data-tour="grow-who"]'),
+      place: 'bottom',
+    },
+    {
+      id: 'copy',
+      scene: 0,
+      target: '[data-tour="copy-caption"]',
+      title: 'A post plan per city',
+      body: 'A hook aimed at that city, a caption, hashtags people there search and a sound from its music list. Copy the caption and tags.',
+      mode: 'click',
+      place: 'left',
+    },
+    {
+      id: 'collabs',
+      scene: 0,
+      target: '[data-tour="grow-collabs"]',
+      title: 'Who to collab with',
+      body: 'Creators this city’s audience loves. Big names: duet or stitch them. Less famous ones, found with Qloo’s popularity filter: pitch a real collab. Each has its score behind it.',
+      mode: 'next',
+      place: 'left',
+    },
+    {
+      id: 'deals',
+      scene: 0,
+      target: '[data-tour="grow-deals"]',
+      title: 'Brand deals and podcasts',
+      body: 'What this creator’s fans also love in that city, from Qloo’s cross-category data: brands to pitch for a deal, podcasts to guest on.',
+      mode: 'next',
+      skipIf: () => !document.querySelector('[data-tour="grow-deals"]'),
+      place: 'left',
+    },
+    {
+      id: 'test-send',
+      scene: 1,
+      target: '[data-tour="composer-action"]',
+      title: 'Pre-test before posting',
+      body: `Will it land in ${sc.away} too? We’ve typed the question. Press ACTION.`,
+      mode: 'click',
+      draft: { surface: 'composer', text: `Will my content land in ${sc.away} and ${sc.home}?`, pinned: 'test' },
+      place: 'top',
+    },
+    {
+      id: 'away',
+      scene: 1,
+      target: `[data-tour="city-${sc.away}"]`,
+      title: `Now ${sc.away}`,
+      body: `Click ${sc.away}. Every reference is re-scored for that city and the text recolours: red is what won’t land there.`,
+      mode: 'click',
+      ready: (c) => has(c, 'test'),
+      place: 'bottom',
+    },
+    {
+      id: 'who',
+      scene: 1,
+      target: '[data-tour="who"]',
+      title: 'Who it speaks to',
+      body: 'The same fan skew, against the creator’s 18–24 audience. A post can fit a city and still reach the wrong people.',
+      mode: 'next',
+      place: 'left',
+    },
+    {
+      id: 'adapt',
+      scene: 2,
+      target: '[data-tour="composer-action"]',
+      title: `Rewrite it for ${sc.away}`,
+      body: `Adapt swaps only what won’t land in ${sc.away} for what holds the same spot there, and keeps the creator’s voice. Press ACTION.`,
+      mode: 'click',
+      draft: { surface: 'composer', text: `Rewrite it for ${sc.away}, keep my voice`, pinned: 'adapt' },
+      place: 'top',
+    },
+    {
+      id: 'accept',
+      scene: 2,
+      target: '[data-tour="accept-clear"]',
+      title: 'Local equivalents, scored',
+      body: `Each swap must score higher in ${sc.away} than what it replaces, and passes a sensitivity check. Accept the clear ones and watch the fit climb.`,
+      mode: 'click',
+      ready: (c) => has(c, 'adapt'),
+      skipIf: () => !document.querySelector('[data-tour="accept-clear"]:not([disabled])'),
+      place: 'bottom',
+    },
+    {
+      id: 'boost-send',
+      scene: 3,
+      target: '[data-tour="composer-action"]',
+      title: `${sc.budgetText} to boost`,
+      body: 'Last scene. Where should a small boost go? Press ACTION.',
+      mode: 'click',
+      draft: { surface: 'composer', text: `Split ${sc.budgetText} to boost my posts`, pinned: 'spend' },
+      place: 'top',
+    },
+    {
+      id: 'matrix',
+      scene: 3,
+      target: '[data-tour="matrix"]',
+      title: 'Each city gets the right version',
+      body: `The ${sc.away} rewrite runs in ${sc.away}, the original everywhere it already lands. A starting split, not a forecast: shift it after a few days of real results.`,
+      mode: 'next',
+      ready: (c) => has(c, 'spend'),
+      place: 'bottom',
+    },
+    {
+      id: 'wrap',
+      scene: 3,
+      target: '',
+      title: 'That’s a wrap',
+      body: `One line in, and a creator gets the cities to grow into, a post plan for each, collabs, brand deals, a rewrite and a boost plan, all from Qloo’s taste data. ${india ? 'There’s a US version too.' : 'There’s an India version too.'} Switch to For ad teams for the brand side.`,
+      mode: 'finish',
+    },
+  ]
+}
+
 export function buildTour(sc: Scenario): TourStep[] {
+  if (sc.kind === 'creator') return buildCreatorTour(sc)
   const p = promptsFor(sc)
   const where = sc.brief.cities.slice(0, -1).join(', ') + ' and ' + sc.brief.cities.at(-1)
   return [
@@ -243,6 +397,7 @@ interface TourState {
   run: number
   scenario: Scenario['id']
   steps: TourStep[]
+  scenes: Scene[]
   campaignId: string | null
   draft: { surface: Surface; text: string; pinned?: AgentId; n: number } | null
   start: (scenario?: Scenario['id']) => void
@@ -260,9 +415,19 @@ export const useTour = create<TourState>()((set, get) => ({
   run: 0,
   scenario: 'us',
   steps: buildTour(SCENARIOS.us),
+  scenes: SCENES,
   campaignId: null,
   draft: null,
-  start: (scenario = 'us') => set((s) => ({ active: true, i: 0, campaignId: null, run: s.run + 1, scenario, steps: buildTour(SCENARIOS[scenario]) })),
+  start: (scenario = 'us') =>
+    set((s) => ({
+      active: true,
+      i: 0,
+      campaignId: null,
+      run: s.run + 1,
+      scenario,
+      steps: buildTour(SCENARIOS[scenario]),
+      scenes: SCENARIOS[scenario].kind === 'creator' ? CREATOR_SCENES : SCENES,
+    })),
   stop: () => set({ active: false, draft: null }),
   next: () => set({ i: Math.min(get().i + 1, get().steps.length - 1) }),
   back: () => set({ i: Math.max(0, get().i - 1) }),

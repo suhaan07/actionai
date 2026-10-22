@@ -205,8 +205,8 @@ function Personas({ c, creative, city }: { c: Campaign; creative: Creative; city
         <p className="text-[12.5px] text-ink-3">Couldn't build personas for {city} right now.</p>
       ) : (
         <ul className="space-y-3.5">
-          {ps.map((p) => (
-            <li key={p.band} className="flex gap-3">
+          {ps.map((p, k) => (
+            <li key={`${p.band}-${k}`} className="flex gap-3">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-ink font-mono text-[10px] text-chalk">{p.band.split(' · ')[0]}</span>
               <div className="min-w-0">
                 <p className="font-serif text-[16px] italic leading-snug">“{p.reaction}”</p>

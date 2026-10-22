@@ -23,9 +23,10 @@ const CREATOR_EXAMPLES = [
 
 const savedMode = (): Mode => {
   try {
-    return localStorage.getItem('action-ai:mode') === 'creators' ? 'creators' : 'brands'
+    // Creators first, unless this visitor picked ad teams before.
+    return localStorage.getItem('action-ai:mode') === 'brands' ? 'brands' : 'creators'
   } catch {
-    return 'brands'
+    return 'creators'
   }
 }
 
@@ -108,24 +109,44 @@ export default function Home() {
               </>
             ) : (
               <>
-                Know which version of your ad fits which city, and where your budget will work hardest, <em className="font-serif text-[18px] text-ink">before</em> you spend on media. Any city, any market.
+                    Know which version of your ad fits which city, and where your budget will work hardest, <em className="font-serif text-[18px] text-ink">before</em> you spend on media. Any city, any market.
+                  </>
+                )}
+              </p>
+              <div className="mx-auto mt-6 flex flex-wrap items-center justify-center gap-2">
+                {creators ? (
+                  <>
+                    <button
+                      onClick={() => startTour('creator-us')}
+                      className="group inline-flex items-center gap-2.5 rounded-full border border-ink bg-paper-3 py-1.5 pl-1.5 pr-4 text-[13px] font-semibold shadow-card transition hover:-translate-y-0.5"
+                    >
+                      <span className="grid h-7 w-7 place-items-center rounded-full bg-ink text-chalk">
+                        <Play className="h-3 w-3 fill-chalk" />
+                      </span>
+                      Take the tour
+                      <span className="font-normal text-ink-3">· a TikToker in Atlanta grows into new cities · you click through · 3 min</span>
+                    </button>
+                    <button onClick={() => startTour('creator-india')} className="text-[12.5px] font-medium text-ink-2 underline decoration-line-2 underline-offset-4 hover:text-ink">
+                      or the India version
+                    </button>
+                  </>
+                ) : (
+                  <>
+                <button
+                  onClick={() => startTour('us')}
+                  className="group inline-flex items-center gap-2.5 rounded-full border border-ink bg-paper-3 py-1.5 pl-1.5 pr-4 text-[13px] font-semibold shadow-card transition hover:-translate-y-0.5"
+                >
+                  <span className="grid h-7 w-7 place-items-center rounded-full bg-ink text-chalk">
+                    <Play className="h-3 w-3 fill-chalk" />
+                  </span>
+                  Take the tour
+                  <span className="font-normal text-ink-3">· a festival touring five US cities · you click through · 4 min</span>
+                </button>
+                <button onClick={() => startTour('india')} className="text-[12.5px] font-medium text-ink-2 underline decoration-line-2 underline-offset-4 hover:text-ink">
+                  or the India version
+                </button>
               </>
             )}
-          </p>
-          <div className="mx-auto mt-6 flex flex-wrap items-center justify-center gap-2">
-            <button
-              onClick={() => startTour('us')}
-              className="group inline-flex items-center gap-2.5 rounded-full border border-ink bg-paper-3 py-1.5 pl-1.5 pr-4 text-[13px] font-semibold shadow-card transition hover:-translate-y-0.5"
-            >
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-ink text-chalk">
-                <Play className="h-3 w-3 fill-chalk" />
-              </span>
-              Take the tour
-              <span className="font-normal text-ink-3">· a festival touring five US cities · you click through · 4 min</span>
-            </button>
-            <button onClick={() => startTour('india')} className="text-[12.5px] font-medium text-ink-2 underline decoration-line-2 underline-offset-4 hover:text-ink">
-              or the India version
-            </button>
           </div>
         </section>
 

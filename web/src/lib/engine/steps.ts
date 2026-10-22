@@ -249,7 +249,7 @@ async function spend(c: Campaign, log: Log): Promise<Apply> {
     log(`Pulling targeting interests and public figures from Qloo`)
     profiles = (await api.profiles(missing, c.brief.audience, {}, false)).profiles
   }
-  log('Weighting by audience size and CPM, 10% floor per region')
+  log('Weighting by audience size and CPM, with a test floor per region')
 
   return (cc) => {
     mergeScores(cc, extra)
@@ -334,6 +334,7 @@ async function grow(c: Campaign, ctx: StepCtx, log: Log): Promise<Apply> {
     Object.assign(cc.profiles, res.profiles)
     for (const e of res.evidence) cc.evidence[e.id] = e
     if (!cc.brief.sourceCity) cc.brief.sourceCity = home
+    cc.brief.cities = Array.from(new Set([...cc.brief.cities, home, ...picks.filter((x) => res.cities[x])]))
     for (const e of res.evidence) cc.evidence[e.id] = e
     const got = picks.filter((x) => res.cities[x])
     const takeId = addTake(cc, 'grow', `Grow · ${got.length ? list(got) : 'next cities'}`, { kind: 'grow', creativeId: cr.id, home, cities, targets: got, plans: res.cities, skew: res.skew ?? null })

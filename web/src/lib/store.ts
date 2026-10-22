@@ -177,10 +177,11 @@ export const useStore = create<State>()(
         if (r.sourceCity) mutate(id, (cc) => (cc.brief.sourceCity = r.sourceCity))
         await run(id, r.steps, r.cities ?? [], r.budget, input, usePlaceholder, nlu)
         // The same message may also ask a lookup question ("…and which creators can I target?"): answer it after the run.
-        if (nlu.ask && nlu.intents.length && gen(id) === started) {
+        const followUp = nlu.ask_question?.trim()
+        if (nlu.ask && nlu.intents.length && followUp && followUp !== input.text.trim() && gen(id) === started) {
           mutate(id, (cc) => (cc.busy = true))
           try {
-            const res = await askQloo(get().campaigns[id], nlu.ask_question || input.text, r.cities ?? [])
+            const res = await askQloo(get().campaigns[id], followUp, r.cities ?? [])
             if (gen(id) !== started) return
             mutate(id, (cc) => {
               for (const e of res.evidence) cc.evidence[e.id] = e

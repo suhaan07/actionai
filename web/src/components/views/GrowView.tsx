@@ -42,7 +42,7 @@ export function GrowView({ c, creative, home, cities, targets, plans, skew }: { 
       </Panel>
 
       {skew?.ad && (
-        <Panel title="Who your content's fans are · Qloo, in aggregate" right={<MatchBadge value={matchOf(skew.ad, target)} />}>
+        <Panel data-tour="grow-who" title="Who your content's fans are · Qloo, in aggregate" right={<MatchBadge value={matchOf(skew.ad, target)} />}>
           <div className="grid gap-5 sm:grid-cols-[240px_1fr]">
             <div>
               <p className="label mb-2">{skewLine(skew.ad)}</p>
@@ -118,7 +118,7 @@ export function GrowView({ c, creative, home, cities, targets, plans, skew }: { 
                       </div>
                     )}
                   </div>
-                  <div>
+                  <div data-tour="grow-collabs">
                     <p className="label mb-1.5 flex items-center gap-1.5">
                       <Users className="h-3 w-3" /> Duet, stitch or collab · creators {city} loves
                     </p>
@@ -144,7 +144,7 @@ export function GrowView({ c, creative, home, cities, targets, plans, skew }: { 
                     <p className="mt-1.5 text-[11px] text-ink-3">Ranked by how much {city}&apos;s audience likes them, not by niche. Big names: duet, stitch or react to them; smaller ones: pitch a collab.</p>
                   </div>
                   {p.deals && (p.deals.brands.length > 0 || p.deals.podcasts.length > 0) && (
-                    <div>
+                    <div data-tour="grow-deals">
                       <p className="label mb-1.5 flex items-center gap-1.5">
                         <Handshake className="h-3 w-3" /> Brand deals and podcasts · what your fans love in {city}
                         {p.deals.evidenceId && <Footnote n={++fn} evidenceId={p.deals.evidenceId} />}
@@ -208,6 +208,7 @@ function PostBox({ caption, hashtags }: { caption: string; hashtags: string[] })
       <div className="mb-1 flex items-center">
         <p className="label">Caption</p>
         <button
+          data-tour="copy-caption"
           onClick={() => {
             navigator.clipboard?.writeText(text).catch(() => {})
             setCopied(true)

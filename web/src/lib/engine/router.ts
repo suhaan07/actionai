@@ -82,7 +82,8 @@ export function route({ campaign, text, attachments, nlu, pinned, usePlaceholder
   const brief = campaign.brief
   const mention = mentionedAgent(text) ?? pinned
   const cities = nlu.regions
-  const budget = nlu.budget ?? brief.budget
+  // If the language model missed an amount that is plainly in the message ("Split ₹20K…"), read it from the text.
+  const budget = nlu.budget ?? detectBudget(text) ?? brief.budget
   const market = marketOf({ ...brief, market: nlu.market ?? brief.market, cities: cities.length ? cities : brief.cities })
   const hasCreative = Object.keys(campaign.creatives).length > 0
   // A master script Create wrote counts as the campaign's ad: it gets read on demand instead of asking for one.
@@ -182,13 +183,12 @@ export function route({ campaign, text, attachments, nlu, pinned, usePlaceholder
   }
 
   let targetCities: City[] = cities.length ? cities : brief.cities
-  // Grow scans the whole market for where to go next, not just the cities named.
+  // Grow scans the whole market itself; the campaign keeps only home and the cities Grow suggests, so a later boost or
+  // pre-test isn't spread across every city it looked at.
   const home = nlu.source_region ?? brief.sourceCity
-  if (grows && (nlu.market || brief.market || targetCities.length || home)) {
-    const m = marketOf({ ...brief, market: nlu.market ?? brief.market, cities: [...targetCities, ...(home ? [home] : [])] })
-    targetCities = Array.from(new Set([...targetCities, ...m.cities, ...m.more]))
-  }
-  if (!targetCities.length && !questions.some((q) => q.field === 'cities' || q.field === 'market')) {
+  const growReady = grows && !!(nlu.market || brief.market || targetCities.length || home)
+  if (growReady && home && !targetCities.includes(home)) targetCities = [home, ...targetCities]
+  if (!targetCities.length && !growReady && !questions.some((q) => q.field === 'cities' || q.field === 'market')) {
     if (!nlu.market && !brief.market) {
       questions.push({
         id: uid('q'),

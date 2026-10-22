@@ -4,7 +4,7 @@
 
 Action AI is a team of agents for ad teams, and for the creators and small brands who have no ad team. It reads an ad or a Reel, scores every cultural reference in it for each city with Qloo's taste graph, rewrites what doesn't fit, and splits the budget by measured cultural fit, before a rupee or dollar is spent.
 
-**Live demo:** https://actionai-pink.vercel.app · open it and click **Take the tour** (US or India, about 4 minutes, you click through).
+**Live demo:** https://actionai-pink.vercel.app · it opens on **For creators**: click **Take the tour** (US or India, about 3 minutes, you click through). Switch to **For ad teams** for the brand tour.
 **Backend:** https://actionai-api.onrender.com/health
 
 ---
@@ -33,7 +33,7 @@ Every score, insight and swap carries a footnote that opens the Qloo entities, p
 
 **Also in the app**
 
-- **Guided tour** in two markets (US and India): a fictional music festival, EchoFest, touring five cities, clicked through step by step and replayed from cache, so it is instant.
+- **Four guided tours**, clicked through step by step and replayed from cache, so they are instant. For creators: a thrift-fit TikToker in Atlanta (US) or a street-food Reels creator in Delhi (India) goes from one line to the cities to grow into, a post plan per city, collabs and brand deals, a pre-test, a rewrite for the weakest city and a small boost. For ad teams: a fictional music festival, EchoFest, touring five cities in the US or India.
 - **Visual mock-ups:** Pollinations FLUX renders a frame for the post and for Adapt's before and after. Images carry no text; the app overlays the headline so it is always spelled right.
 - **Shareable report** at `/r/<id>`: one page for a boss or client, printable to PDF.
 - **Meta Ads Manager CSV:** the starting split, interests and regions in a bulk-import file.

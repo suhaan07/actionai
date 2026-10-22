@@ -129,7 +129,7 @@ export default function Report() {
         {adapts.map((t) => (t.data.kind === 'adapt' ? <AdaptSection key={t.id} c={c} take={t} /> : null))}
 
         {spend && spend.data.kind === 'spend' && (
-          <Section title={`Starting split · ${money(spend.data.budget, cur)}`} note="Cultural fit × audience size ÷ CPM, with a 10% test floor per city. A starting point, not a forecast: shift budget after 3–5 days of real results.">
+          <Section title={`Starting split · ${money(spend.data.budget, cur)}`} note="Cultural fit × audience size ÷ CPM, with a test floor of up to 10% per city. A starting point, not a forecast: shift budget after 3–5 days of real results.">
             <table className="w-full text-[13px]">
               <thead>
                 <tr className="text-left">

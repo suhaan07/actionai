@@ -75,7 +75,7 @@ export const symbolOf = (c: Currency) => SYMBOL[c]
 /** ₹2.5L / ₹1.2Cr for INR; $250K / $1.2M elsewhere. */
 export function money(n: number, currency: Currency = 'INR'): string {
   const s = SYMBOL[currency]
-  if (currency === 'INR') return n >= 1e7 ? `${s}${+(n / 1e7).toFixed(2)}Cr` : n >= 1e5 ? `${s}${+(n / 1e5).toFixed(2)}L` : `${s}${Math.round(n / 1000)}K`
+  if (currency === 'INR') return n >= 1e7 ? `${s}${+(n / 1e7).toFixed(2)}Cr` : n >= 1e5 ? `${s}${+(n / 1e5).toFixed(2)}L` : n >= 1e4 ? `${s}${Math.round(n / 1000)}K` : `${s}${Math.round(n).toLocaleString('en-IN')}`
   return n >= 1e6 ? `${s}${+(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${s}${Math.round(n / 1000)}K` : `${s}${Math.round(n)}`
 }
 

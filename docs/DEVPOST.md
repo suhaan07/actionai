@@ -55,7 +55,7 @@ It works for India, the US and the UK out of the box, and for any city, town or 
 
 ## Accomplishments that we're proud of
 
-- A full product, not a demo script: four agents plus Grow and Ask that chain themselves, a creator mode, a guided tour in two markets, evidence on every number, a shareable report and a Meta export.
+- A full product, not a demo script: four agents plus Grow and Ask that chain themselves, a creator mode, four guided tours (creators and ad teams, US and India), evidence on every number, a shareable report and a Meta export.
 - It disagrees with you when the data does: wrong assumptions get a number, not a polite yes.
 - Every swap must beat the original in Qloo's data before it is proposed.
 - The model is taught to connect signals: every deep-dive insight combines at least two Qloo signals, and code enforces it.
@@ -81,7 +81,8 @@ Qloo API · Gemini 2.5 Flash · Groq (gpt-oss-120b) · Pollinations (FLUX) · Fa
 ## Testing instructions (for judges)
 
 1. Open the live demo at https://actionai-pink.vercel.app. No login is needed.
-2. Click **Take the tour** for the US version, or **or the India version**. It is a fictional music festival (EchoFest) touring five cities; you click each step yourself. About 4 minutes.
+2. The site opens on **For creators**. Click **Take the tour** (a thrift-fit TikToker in Atlanta) or **or the India version** (a street-food Reels creator in Delhi): one line in, then the cities to grow into, a post plan per city, collabs, brand deals, a pre-test, a rewrite and a small boost. About 3 minutes; you click each step yourself.
+   Then switch to **For ad teams** and take that tour: a fictional music festival (EchoFest) touring five cities, in the US or India. About 4 minutes.
 3. Then try your own request on the home page, for example:
    - `Launching a canned cold coffee for college students in Mumbai, Bengaluru and Kolkata: insights, a script and 3 Reel ideas`
    - `Make our coffee ad for Chennai with Hindi songs, they'll love it`
