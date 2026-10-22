@@ -9,6 +9,23 @@ Action AI is a team of agents for ad teams, and for the creators and small brand
 
 ---
 
+## Why Action AI is different
+
+An **agentic, multi-agent creative-intelligence platform** built on Qloo's taste graph. In one line: **pre-test an ad or a Reel city by city, fix it per city, then let the creative decide the budget.**
+
+- **The creative decides the money.** Most taste tools pick a market or describe an audience. Action AI scores *this specific ad's* cultural references in every city, decides which version of the ad runs where, and splits the budget by fit × audience ÷ CPM (a starting split, not a forecast), exported as a Meta Ads Manager file.
+- **A closed loop, not a report.** Test → Adapt → re-test → Spend, chained by a router that plans each request as a visible shot list. Multi-agent orchestration with a human in the loop: every swap is accepted or rejected line by line.
+- **Signals connected, and enforced in code.** Cultural fit, fan age and gender skew (`urn:demographics`), Qloo's own vibe tags (`/v2/insights/compare`), cross-domain affinity (brands, podcasts, shows, venues), niche picks (popularity filter), interest audiences, competitor heatmaps and hotspots inside each city go into one evidence-tagged signal sheet. The model gets a playbook of how they relate, and any insight that doesn't combine two signals and cite them is dropped.
+- **Evidence on every number.** Every score, insight and swap opens the Qloo entity IDs, per-city affinity and exact API calls behind it. Language models read and write; Qloo measures. No invented scores.
+- **Two markets of users, one engine.** Ad teams and agencies (Create, Test, Adapt, Spend) and the creator economy (Grow: where a Reel lands next, a post plan per city, collabs, brand deals and a small boost).
+- **Transcreation, not translation.** Each weak reference is swapped for what holds the same cultural slot in the target city, and must score higher there than what it replaces. Sponsors and anything locked never change.
+- **Multimodal input.** Scripts, images, video and Reels: Gemini reads visuals, on-screen text, speech and music, with timestamps.
+- **Brand safety built in.** A sensitivity check on every route, swap, script and caption. It fails closed and never auto-approves.
+- **Privacy-first.** Aggregate regional taste only: no personal data, no face identification, no targeting by ethnicity or orientation.
+- **Global and hyper-local.** India, the US and the UK out of the box, plus any city, town or state Qloo knows, compared on one scale across countries.
+
+---
+
 ## The problem
 
 Brands make one hero ad and stretch it across a country. In India a campaign built on Punjabi weddings, Bollywood and Delhi street food lands flat in Chennai or Kolkata; in the US a Nashville country spot means little in Miami. Regional versions are usually just translated, the "insight" step runs on gut feel, and budgets are split by population. Testing ads for regional fit (with survey panels from firms like Kantar or System1) is slow and expensive, so it happens on the final cut only, if at all.

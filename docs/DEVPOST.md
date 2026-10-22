@@ -1,6 +1,6 @@
 # Action AI — Devpost submission text
 
-**Tagline (short description):** Creative intelligence that makes every ad, and every Reel, land in every city, powered by Qloo's taste graph.
+**Tagline (short description):** Agentic creative intelligence on Qloo's taste graph: pre-test every ad and Reel city by city, fix what won't land, and let the creative decide the budget.
 
 ---
 
@@ -27,6 +27,15 @@ Action AI is a team of agents behind one prompt box, for ad teams and for creato
 Every score, insight and swap has a footnote that opens the Qloo entities, per-city affinity and the exact API calls behind it. A shareable report turns the campaign into one page for a boss or client.
 
 It works for India, the US and the UK out of the box, and for any city, town or state Qloo knows.
+
+## What makes it different
+
+- **The creative decides the money.** Other taste tools pick a market or describe an audience. Action AI pre-tests *this specific ad* in every city, picks which version runs where, and splits the budget by fit × audience ÷ CPM: a starting split, exported for Meta Ads Manager.
+- **A closed agentic loop:** Test → Adapt → re-test → Spend, planned by a router as a visible shot list, with a human approving every swap.
+- **Connected signals, enforced in code:** fit, fan skew, vibe tags, cross-domain affinity, niche picks, interest audiences, competitors and city hotspots in one evidence-tagged sheet. An insight that doesn't combine two signals and cite them is dropped.
+- **Evidence on every number:** Qloo entity IDs and the exact API calls behind each score, insight and swap. The models read and write; Qloo measures.
+- **Ad teams and creators on one engine:** the same pre-testing, adaptation and budget logic serves an agency's ₹10L campaign and a creator's $500 boost.
+- **Transcreation, brand safety and privacy:** swaps keep the cultural slot and must score higher; a fail-closed sensitivity check runs on everything; only aggregate regional taste is used.
 
 ## How we built it
 
