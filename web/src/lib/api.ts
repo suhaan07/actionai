@@ -1,5 +1,5 @@
 // Backend client. Every Qloo and Gemini call goes through the FastAPI server; no keys in the browser.
-import type { AgentId, Attachment, Campaign, CityProfile, CityWrite, Creative, Evidence, GrowPlan, Master, Persona, Swap, Understanding } from './types'
+import type { AgentId, Attachment, Campaign, CityProfile, CityWrite, Creative, DeepData, Evidence, GrowPlan, Master, Persona, SkewBundle, Swap, Understanding } from './types'
 
 export const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:8000'
 
@@ -84,7 +84,12 @@ export const api = {
     fits: Record<string, number>
     audience?: string
     brief: Record<string, unknown>
-  }) => post<{ reply: string; cities: Record<string, GrowPlan>; profiles: Record<string, CityProfile>; evidence: Evidence[] }>('/api/grow', body),
+  }) => post<{ reply: string; cities: Record<string, GrowPlan>; profiles: Record<string, CityProfile>; evidence: Evidence[]; skew?: SkewBundle | null }>('/api/grow', body),
+
+  deep: (body: { creative: Creative; regions: string[]; brief: Record<string, unknown>; audience?: string; interest?: string; sizes: Record<string, number> }) =>
+    post<DeepData & { evidence: Evidence[] }>('/api/deep', body),
+
+  skew: (creative: Creative, audience?: string) => post<SkewBundle & { evidence: Evidence[] }>('/api/skew', { creative, audience }),
 
   explain: (question: string, creative: Creative | undefined, extra = '') => post<{ text: string; ref_ids: string[] }>('/api/explain', { question, creative, extra }),
 

@@ -29,6 +29,7 @@ interface State {
   toggleRef: (id: string, creativeId: string, refId: string) => void
   updateSwap: (id: string, takeId: string, swapId: string, patch: Partial<Swap>) => void
   loadPersonas: (id: string, creativeId: string, city: City) => void
+  loadSkew: (id: string, creativeId: string) => void
   stop: (id: string) => void
   loadRemote: (id: string) => Promise<boolean>
 }
@@ -133,6 +134,7 @@ export const useStore = create<State>()(
           if (nlu.audience_note && !cc.brief.audienceNote) cc.brief.audienceNote = nlu.audience_note
           if (nlu.deliverables?.length && !cc.brief.deliverables?.length) cc.brief.deliverables = nlu.deliverables
           if (nlu.market && !cc.brief.market) cc.brief.market = nlu.market
+          if (nlu.interest && !cc.brief.interest) cc.brief.interest = nlu.interest
           if (nlu.currency && !cc.brief.currency) cc.brief.currency = nlu.currency
           if (nlu.constraints?.length) cc.brief.locked = Array.from(new Set([...(cc.brief.locked ?? []), ...nlu.constraints]))
         })
@@ -404,6 +406,24 @@ export const useStore = create<State>()(
             .personas(city, c.brief.audience, creative)
             .then((res) => mutate(id, (cc) => (cc.personas[key] = res.personas)))
             .catch(() => mutate(id, (cc) => (cc.personas[key] = [])))
+            .finally(() => set((s) => ({ loadingPersonas: { ...s.loadingPersonas, [key]: false } })))
+        },
+
+        loadSkew: (id, creativeId) => {
+          const key = `skew:${creativeId}`
+          const c = get().campaigns[id]
+          const creative = c?.creatives[creativeId]
+          if (!creative || c.skews?.[creativeId] || get().loadingPersonas[key]) return
+          set((s) => ({ loadingPersonas: { ...s.loadingPersonas, [key]: true } }))
+          api
+            .skew(creative, c.brief.audience || undefined)
+            .then(({ evidence, ...res }) =>
+              mutate(id, (cc) => {
+                cc.skews = { ...(cc.skews ?? {}), [creativeId]: res }
+                for (const e of evidence) cc.evidence[e.id] = e
+              }),
+            )
+            .catch(() => mutate(id, (cc) => (cc.skews = { ...(cc.skews ?? {}), [creativeId]: { ad: null, refs: [], target: { audience: null, match: null } } })))
             .finally(() => set((s) => ({ loadingPersonas: { ...s.loadingPersonas, [key]: false } })))
         },
 

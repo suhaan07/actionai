@@ -12,6 +12,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from .. import gemini, qloo, regions
+from . import intel
 
 LookupType = Literal["artist", "movie", "tv_show", "brand", "person", "place", "book", "podcast", "music_genre"]
 
@@ -50,7 +51,8 @@ Put any names the user suggests in candidates."""
 
 ANSWER_SYSTEM = """You answer an ad team's question using ONLY the Qloo results given.
 - If the user named candidates, open with a verdict on each from the CANDIDATE SCORES (Qloo heatmap affinity 0–100 per city):
-  strong where they score high, weak where low, with the numbers.
+  strong where they score high, weak where low, with the numbers. Where a fan skew is given, connect it: a name that scores high but
+  whose fans skew away from the target audience (match below −0.15) reaches the wrong people; say so.
 - When the question is about one city, rank picks by their score IN THAT CITY from CANDIDATE SCORES, highest first, and quote it.
 - Recommend names that fit the TOPIC. The topic-seeded lists are the on-topic ones; ignore general-favourite names that have nothing to
   do with the topic (e.g. actors for a cricket ambassador), unless the user asked for non-specialists.
@@ -62,7 +64,8 @@ ANSWER_SYSTEM = """You answer an ad team's question using ONLY the Qloo results 
 
 
 def _row(e: dict, typ: str) -> dict:
-    return {"id": e["id"], "name": e["name"], "type": typ, "kind": "entity", "about": (e.get("short_description") or e.get("description") or "")[:120]}
+    return {"id": e["id"], "name": e["name"], "type": typ, "kind": "entity", "about": (e.get("short_description") or e.get("description") or "")[:120],
+            "popularity": e.get("popularity")}
 
 
 def _has_occupation(e: dict, tag: dict) -> bool:
@@ -85,9 +88,10 @@ def _is_creator(e: dict, occupations: set[str] = _CREATOR_OCCUPATIONS) -> bool:
     return any((t.get("id") or "").startswith("urn:tag:occupation:") and (t.get("name") or "").strip().lower() in occupations for t in e.get("tags") or [])
 
 
-async def local_creators(region: dict, take: int = 10, social_only: bool = False) -> list[dict]:
-    """Social creators a region's audience over-indexes on: its own top 100 public figures, kept if Qloo tags them as creators."""
-    p = {"filter.type": "urn:entity:person", **regions.location_params(region)}
+async def local_creators(region: dict, take: int = 10, social_only: bool = False, max_pop: float | None = None) -> list[dict]:
+    """Social creators a region's audience over-indexes on: its own top 100 public figures, kept if Qloo tags them as creators.
+    max_pop keeps to less famous people (Qloo popularity 0–1), the ones a small creator can actually collab with."""
+    p = {"filter.type": "urn:entity:person", **regions.location_params(region), **({"filter.popularity.max": max_pop} if max_pop else {})}
     people = []
     for page in (1, 2):
         people += await qloo.insights({**p, "take": 50, "page": page})
@@ -183,7 +187,12 @@ async def ask(question: str, brief: dict, region_names: list[str], audience: str
     cands = cands + extra
     cand_cells = await asyncio.gather(*[qloo.heatmap(qloo.heat_params(c), scope) for c in cands])
     cand_scores = {c["name"]: {r["name"]: v for r in resolved if (v := regions.score_in(cs, r, mult)) is not None} for c, cs in zip(cands, cand_cells)}
-    cand_txt = "\n".join(f"- {n}{' (user suggested)' if n in suggested else ''}: " + ", ".join(f"{k} {v}" for k, v in sc.items()) for n, sc in cand_scores.items())
+    # Who each named candidate's fans are (aggregate age/gender skew), so the verdict weighs fit AND audience match together.
+    named = [c for c in cands if c["name"] in suggested]
+    skews = dict(zip([c["name"] for c in named], await asyncio.gather(*[qloo.demographics(c["id"]) for c in named])))
+    cand_txt = "\n".join(f"- {n}{' (user suggested)' if n in suggested else ''}: " + ", ".join(f"{k} {v}" for k, v in sc.items())
+                         + (f" | fans {intel.describe(skews[n])}, match with {audience or 'the target'}: {intel.match(skews[n], audience)}" if skews.get(n) else "")
+                         for n, sc in cand_scores.items())
 
     answer = await gemini.json_call(
         AskAnswer, ANSWER_SYSTEM,

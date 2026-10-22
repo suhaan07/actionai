@@ -15,7 +15,8 @@ _sem = asyncio.Semaphore(4)
 ENTITY_TYPES = ["artist", "movie", "tv_show", "brand", "person", "place", "book", "podcast", "video_game", "destination"]
 
 # Properties worth keeping; Qloo returns a lot more (akas etc.) that we drop.
-_KEEP = ("description", "short_description", "primary_genres", "secondary_genres", "known_for", "characteristics", "lyrical_themes", "release_year", "image")
+_KEEP = ("description", "short_description", "primary_genres", "secondary_genres", "known_for", "characteristics", "lyrical_themes", "release_year", "image",
+         "keywords", "lifestyle", "industries", "core_values")
 
 
 class QlooError(Exception):
@@ -100,6 +101,11 @@ def _slim(path: str, params: dict, data: dict):
         return [_slim_entity(e) for e in res["entities"]]
     if "demographics" in res:
         return res["demographics"]
+    if "audiences" in res:
+        return [{"id": a.get("id"), "name": a.get("name"), "type": a.get("type")} for a in res["audiences"]]
+    if "a" in res and "b" in res:  # /v2/insights/compare: the tags that set each side apart
+        side = lambda xs: [{"id": t.get("tag_id") or t.get("id"), "name": t.get("name"), "type": t.get("subtype") or t.get("type")} for t in xs or []]
+        return {"a": side(res["a"]), "b": side(res["b"])}
     return []
 
 
@@ -129,7 +135,26 @@ async def heatmap(signal: dict, scope: dict | None = None) -> list[list[float]]:
 
 
 def heat_params(sig: dict) -> dict:
+    if sig["kind"] == "audience":
+        return {"signal.demographics.audiences": sig["id"]}
     return {"signal.interests.tags": sig["id"]} if sig["kind"] == "tag" else {"signal.interests.entities": sig["id"]}
+
+
+async def demographics(entity_id: str) -> dict | None:
+    """Age-band and gender skew of an entity's fans, each −1…1 (0 = in line with everyone). Entities only."""
+    rows = await _get("/v2/insights", {"filter.type": "urn:demographics", "signal.interests.entities": entity_id})
+    q = (rows[0].get("query") if rows else None) or None
+    return {"age": q.get("age") or {}, "gender": q.get("gender") or {}} if q else None
+
+
+async def compare(a_ids: list[str], b_ids: list[str]) -> dict:
+    """The tags that set side A apart from side B (and B from A), including Qloo's style, theme and audience tags."""
+    out = await _get("/v2/insights/compare", {"a.signal.interests.entities": ",".join(a_ids), "b.signal.interests.entities": ",".join(b_ids), "take": 12})
+    return out if isinstance(out, dict) else {"a": [], "b": []}
+
+
+async def audiences(audience_type: str) -> list[dict]:
+    return (await _get("/v2/audiences", {"filter.audience.types": audience_type, "take": 100})) or []
 
 
 AGE_BANDS = ["24_and_younger", "25_to_29", "30_to_34", "35_to_44", "45_to_54", "55_and_older"]

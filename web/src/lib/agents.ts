@@ -93,4 +93,16 @@ export const READ_META: AgentMeta = {
   examples: [],
 }
 
-export const metaOf = (a: StepAgent): AgentMeta => (a === 'read' ? READ_META : AGENTS[a])
+export const DEEP_META: AgentMeta = {
+  id: 'deep',
+  scene: '06',
+  name: 'Deep dive',
+  glyph: '◈',
+  bring: 'An ad that has been tested',
+  get: 'Who it really reaches, the partners and media its audience loves, venues, competitors, and a strategist read that connects them',
+  line: 'Every Qloo signal about your ad, connected',
+  placeholder: '',
+  examples: [],
+}
+
+export const metaOf = (a: StepAgent): AgentMeta => (a === 'read' ? READ_META : a === 'deep' ? DEEP_META : AGENTS[a])

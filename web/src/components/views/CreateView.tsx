@@ -2,6 +2,7 @@ import { ShieldAlert } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { Campaign, City, Master } from '../../lib/types'
 import { Chip, Footnote, SectionLabel } from '../ui'
+import { PopBadge } from './intel'
 import { Mockup } from './Mockup'
 
 export function CreateView({ c, cities, master }: { c: Campaign; cities: City[]; master?: Master }) {
@@ -37,6 +38,7 @@ export function CreateView({ c, cities, master }: { c: Campaign; cities: City[];
               <article key={city} className="card w-[290px] shrink-0 snap-start overflow-hidden">
                 <header className="border-b border-line bg-ink px-4 py-3 text-chalk">
                   <h3 className="font-display text-[30px] font-black uppercase leading-none">{city}</h3>
+                  {p.audience && <p className="mt-1 font-mono text-[10px] uppercase tracking-wider text-chalk-3">{p.audience} fans only</p>}
                   <div className="mt-2 flex flex-wrap gap-1">
                     {p.tags.slice(0, 8).map((t) => (
                       <span key={t.id} className="rounded bg-chalk/10 px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wide text-chalk-2">
@@ -51,8 +53,13 @@ export function CreateView({ c, cities, master }: { c: Campaign; cities: City[];
                       <p className="label mb-1">{d.label}</p>
                       <p className="text-[13px] leading-relaxed">
                         {d.items.slice(0, 5).map((it, i, arr) => (
-                          <span key={it.id} title={it.description ?? undefined} className={`transition-opacity ${contrast && shared.has(it.name) ? 'opacity-30' : ''}`}>
+                          <span key={it.id} title={[it.description, it.affinity != null ? `Qloo affinity ${Math.round(it.affinity * 100)}` : ''].filter(Boolean).join(' · ') || undefined} className={`transition-opacity ${contrast && shared.has(it.name) ? 'opacity-30' : ''}`}>
                             {it.name}
+                            {it.popularity != null && it.popularity < 0.4 && (
+                              <span className="ml-1 align-middle">
+                                <PopBadge value={it.popularity} />
+                              </span>
+                            )}
                             {i < arr.length - 1 && <span className="text-ink-3"> · </span>}
                           </span>
                         ))}

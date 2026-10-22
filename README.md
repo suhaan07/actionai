@@ -26,6 +26,7 @@ One prompt box, four agents for ad teams, Grow for creators, plus Ask. A router 
 | **⇄ Adapt** | An ad that works in one city | Each weak reference swapped for what holds the same cultural slot in the target city, scored, explained, sensitivity-checked, with AI before/after mock-ups |
 | **▤ Spend** | A budget | A starting split by cultural fit × audience ÷ CPM, "fix before you spend" flags, a targeting pack, creator suggestions, and a Meta Ads Manager CSV |
 | **↗ Grow** (creators) | A Reel, a post, or just "I make street food Reels in Delhi" | Where the content lands next (Qloo fit × people there), and for each city a hook, caption, hashtags, audio, one local touch with its Qloo evidence, and local creators to duet, stitch or collab with |
+| **◈ Deep dive** | An ad that has been tested | A strategist read that connects every Qloo signal about it: who it really reaches (fan age and gender skew), the vibe gap per city, the brands, podcasts and shows its audience loves, niche local artists, venues and hotspots inside each city, competitors and interest audiences. Each insight must combine two or more signals, cite them, and end in an action |
 | **? Ask** | Any question | Answers from Qloo data: headliners, ambassadors, creators, tie-ins, with a verdict on any name you suggest |
 
 Every score, insight and swap carries a footnote that opens the Qloo entities, per-city affinity and the exact API calls behind it.
@@ -48,6 +49,27 @@ Every score, insight and swap carries a footnote that opens the Qloo entities, p
 - **"I make street food Reels in Delhi. Which cities would love my content next?"** Grow reads the niche (Old Delhi chaat, paratha stalls, bhangra), scores it across 12 Indian cities (Delhi 89 at home; Jaipur 86, Mumbai 84, Kolkata 84 next; Kochi 45) and writes a post plan per city: "Kolkata, who's up for a chaat showdown?", #KolkataStreetFood, an Anupam Roy sound, a Mani Square collab, and the creators Kolkata's audience over-indexes on.
 - **"Maybe Virat Kohli as our cricket ambassador?"** Kohli scores 72 in London and 100 in Mumbai; Qloo's own cricketers ranked for each city add Ben Stokes (London 92) and Hardik Pandya (Mumbai 100).
 
+## Connecting the signals
+
+Most tools show one Qloo number at a time. Action AI's deep dive puts every signal about an ad into one **signal sheet**, each line tagged with
+the evidence id behind it, and gives the model a **playbook** of how the signals relate:
+
+| When you see | It means |
+| --- | --- |
+| High fit, but fans skew away from the target audience | A hidden risk: it lands, with the wrong people. Swap that reference |
+| Big city, weak fit | Fix the ad before spending there |
+| Low fit and a vibe gap (Qloo style/theme tags) | Move the ad toward the city's tags |
+| Partners loved in a low-fit city | A local partner can bridge the gap |
+| A rival strong vs its own average where your fit is weak | Defend with a better-fitting version |
+| Hottest heatmap cells near venues the audience loves | Where to shoot, pop up or buy outdoor |
+| An interest audience concentrated where the ad fits | The primary market |
+| A mainstream pick skewing away from the target | Use a niche local pick instead |
+
+Code then checks the output: an insight that cites fewer than two kinds of signal, or evidence that doesn't exist, is dropped. The same
+signals feed the other agents: Test shows who the ad speaks to, Ask weighs a named ambassador's fan skew against the target, Grow leans
+hooks toward a creator's real audience, Adapt shows the vibe shift of each swap, and Create profiles an interest audience (Health And
+Beauty fans in Pune) instead of the whole city.
+
 ## How Qloo is used
 
 Qloo is the source of every number. The language models read and write; they never invent a score.
@@ -63,6 +85,12 @@ Qloo is the source of every number. The language models read and write; they nev
 | Personas | `/v2/insights` with `signal.demographics.age` and `signal.demographics.gender` per city | Each persona is a real taste cluster; labelled as simulated |
 | People on a topic | `/v2/tags` finds the occupation tag (e.g. Cricketer, Influencer) → `/search` finds Qloo's most popular people with it → `/v2/insights` ranks people around them per city → results kept only if Qloo tags them with that occupation | Qloo uses more than one ID for the same occupation, so matching is by tag name |
 | Assumption checks | Heatmap of the thing the user assumed, across the market's cities | Answers "will Hindi songs work in Chennai?" with a number |
+| Who an ad speaks to | `filter.type=urn:demographics` with `signal.interests.entities` | Age-band and gender skew of each reference's fans, blended by prominence and matched against the target audience |
+| What the audience also loves | `/v2/insights` for `brand`, `podcast`, `tv_show`, `place` with `signal.interests.entities` (the ad's main references) + the city | Partners, podcasts to sponsor, shows to buy around, venues with coordinates; what every city shares is dropped |
+| Niche picks | `filter.popularity.max` | Local artists and reachable creators, not just the mainstream |
+| Vibe gap | `GET /v2/insights/compare` | Qloo's own style, theme and audience tags that set the ad apart from each city's favourites, and each swap's before/after |
+| Interest audiences | `GET /v2/audiences` and `signal.demographics.audiences` | e.g. Health And Beauty fans per city, and their heatmap; community audiences are deliberately not used for targeting |
+| Competitors and hotspots | Heatmaps of each competitor brand; the hero reference's heatmap cells inside each city | Competitor strength relative to its own average; where in a city the ad lands strongest |
 | Grow (creators) | The creator's content scored by heatmap across the whole market; each target city's `/v2/insights` lists; its top 100 `urn:entity:person` filtered by Qloo social-creator occupation tags, each scored by heatmap | Every name in a hook, hashtag, sound or local touch must come from that city's lists; celebrity and brand hashtags are filtered out in code |
 
 **Caching.** Every Qloo response is cached privately (Supabase, disk fallback), as Qloo's hackathon terms allow. No Qloo data is committed to this repository.
@@ -141,6 +169,7 @@ Create the tables once: paste [server/supabase/schema.sql](server/supabase/schem
 | `server/app/agents/talk.py` | Router understanding, personas, follow-ups |
 | `server/app/regions.py` | Markets, cities, states, towns, heatmap scoping |
 | `web/src/lib/engine/` | Router plan, step runners, scoring and budget split |
+| `server/app/agents/intel.py` | Deep dive: all signals, the signal sheet, the correlation playbook and its checks |
 | `server/app/agents/grow.py` | Grow: per-city post plans and local creators for creators |
 | `server/app/agents/sensitivity.py` | Sensitivity check on routes, swaps, scripts and captions |
 | `server/app/gemini.py`, `groq.py` | Model calls, fallback and response cache |

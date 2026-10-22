@@ -5,6 +5,7 @@ import { marketOf } from '../../lib/regions'
 import type { Campaign, Creative } from '../../lib/types'
 import { AdaptView } from '../views/AdaptView'
 import { CreateView } from '../views/CreateView'
+import { DeepView } from '../views/DeepView'
 import { GrowView } from '../views/GrowView'
 import { ReadoutView } from '../views/ReadoutView'
 import { SpendView } from '../views/SpendView'
@@ -68,7 +69,7 @@ function TakeBody({ c, takeId }: { c: Campaign; takeId: string }) {
         </p>
         <h2 className="font-display text-[40px] font-black uppercase leading-[0.95]">{take.title.split(' · ').slice(1).join(' · ') || take.title}</h2>
       </div>
-      <p className="pb-1 text-[12.5px] text-ink-3">{take.agent === 'read' ? metaOf('read').get : AGENTS[take.agent as keyof typeof AGENTS].get}</p>
+      <p className="pb-1 text-[12.5px] text-ink-3">{metaOf(take.agent).get}</p>
     </header>
   )
 
@@ -78,7 +79,8 @@ function TakeBody({ c, takeId }: { c: Campaign; takeId: string }) {
   if (d.kind === 'adapt') body = <AdaptView c={c} take={take} />
   if (d.kind === 'spend') body = <SpendView c={c} cities={d.cities} />
   if (d.kind === 'create') body = <CreateView c={c} cities={d.cities} master={d.master} />
-  if (d.kind === 'grow') body = <GrowView c={c} creative={d.creativeId ? c.creatives[d.creativeId] : undefined} home={d.home} cities={d.cities} targets={d.targets} plans={d.plans} />
+  if (d.kind === 'deep') body = <DeepView c={c} cities={d.cities} d={d.deep} />
+  if (d.kind === 'grow') body = <GrowView c={c} creative={d.creativeId ? c.creatives[d.creativeId] : undefined} home={d.home} cities={d.cities} targets={d.targets} plans={d.plans} skew={d.skew} />
 
   return (
     <div className="rise mx-auto max-w-[1200px]">

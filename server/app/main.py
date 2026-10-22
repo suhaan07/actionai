@@ -13,6 +13,7 @@ from . import cache, config, gemini, imagegen, qloo, regions, supa
 from .agents import adapt as adapt_agent
 from .agents import ask as ask_agent
 from .agents import grow as grow_agent
+from .agents import intel
 from .agents import profile as profile_agent
 from .agents import read as read_agent
 from .agents import talk
@@ -139,7 +140,7 @@ async def profiles(body: ProfilesIn):
     try:
         if body.write:
             return await _memo("create:v4", body.model_dump(), lambda: profile_agent.create(body.regions, body.audience, body.brief))
-        return {"profiles": await profile_agent.profiles(body.regions, body.audience), "writes": {}, "evidence": []}
+        return {"profiles": await profile_agent.profiles(body.regions, body.audience, body.brief.get("interest") or None), "writes": {}, "evidence": []}
     except Exception as e:
         _fail(e, "Building city profiles")
 
@@ -200,11 +201,49 @@ class GrowIn(BaseModel):
 @app.post("/api/grow")
 async def grow(body: GrowIn):
     try:
-        return await _memo("grow:v7", body.model_dump(), lambda: grow_agent.grow(
+        return await _memo("grow:v8", body.model_dump(), lambda: grow_agent.grow(
             creative=body.creative, niche=body.niche, home=body.home, targets=body.targets, region_names=body.regions, fits=body.fits,
             audience=body.audience, brief=body.brief))
     except Exception as e:
         _fail(e, "Planning where to grow")
+
+
+# ── Deep dive (every Qloo signal, correlated) ───────────
+
+class DeepIn(BaseModel):
+    creative: dict
+    regions: list[str]
+    brief: dict = {}
+    audience: str | None = None
+    interest: str | None = None
+    sizes: dict[str, float] = {}
+
+
+@app.post("/api/deep")
+async def deep(body: DeepIn):
+    try:
+        return await _memo("deep:v4", body.model_dump(), lambda: intel.deep(
+            creative=body.creative, region_names=body.regions, brief=body.brief, audience=body.audience, interest=body.interest, sizes=body.sizes))
+    except Exception as e:
+        _fail(e, "The deep dive")
+
+
+class SkewIn(BaseModel):
+    creative: dict
+    audience: str | None = None
+
+
+@app.post("/api/skew")
+async def skew(body: SkewIn):
+    try:
+        return await intel.skew_bundle(body.creative, body.audience)
+    except Exception as e:
+        _fail(e, "Reading who the ad speaks to")
+
+
+@app.get("/api/audiences")
+async def audiences():
+    return {"audiences": [a["name"] for a in await intel.audience_list()]}
 
 
 # ── Follow-ups ──────────────────────────────────────────

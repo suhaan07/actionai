@@ -50,6 +50,7 @@ const briefPayload = (c: Campaign, ctx?: StepCtx) => ({
   audience: c.brief.audience,
   goal: c.brief.goal || ctx?.text || '',
   campaign_type: c.brief.campaignType || ctx?.nlu.campaign_type || 'product',
+  interest: c.brief.interest || ctx?.nlu.interest || '',
 })
 
 function addTake(c: Campaign, agent: Take['agent'], title: string, data: TakeData): string {
@@ -76,6 +77,8 @@ export async function runStep(c: Campaign, step: PlanStep, ctx: StepCtx, log: Lo
       return createStep(c, ctx, log)
     case 'grow':
       return grow(c, ctx, log)
+    case 'deep':
+      return deep(c, ctx, log)
   }
 }
 
@@ -171,6 +174,7 @@ async function test(c: Campaign, ctx: StepCtx, log: Log): Promise<Apply> {
     const chips: Chip[] = []
     if (weak.length) chips.push({ label: `Adapt for ${list(weak.slice(0, 2))}`, agent: 'adapt', prompt: `Make it work in ${list(weak.slice(0, 2))}` })
     chips.push({ label: 'Plan spend', agent: 'spend', prompt: `Split ${money(exampleBudget(currencyOf(cc.brief)), currencyOf(cc.brief))} across ${list(cities)}` })
+    chips.push({ label: 'Deep dive', prompt: 'Deep dive: who does this ad really reach, and who should we partner with?' })
     return {
       takeId,
       summary: `Fits best in ${scores[0].city} (${scores[0].s}), weakest in ${scores.at(-1)!.city} (${scores.at(-1)!.s}).${weak.length ? ` ${list(weak)} score under 50.` : ''}`,
@@ -330,8 +334,9 @@ async function grow(c: Campaign, ctx: StepCtx, log: Log): Promise<Apply> {
     Object.assign(cc.profiles, res.profiles)
     for (const e of res.evidence) cc.evidence[e.id] = e
     if (!cc.brief.sourceCity) cc.brief.sourceCity = home
+    for (const e of res.evidence) cc.evidence[e.id] = e
     const got = picks.filter((x) => res.cities[x])
-    const takeId = addTake(cc, 'grow', `Grow · ${got.length ? list(got) : 'next cities'}`, { kind: 'grow', creativeId: cr.id, home, cities, targets: got, plans: res.cities })
+    const takeId = addTake(cc, 'grow', `Grow · ${got.length ? list(got) : 'next cities'}`, { kind: 'grow', creativeId: cr.id, home, cities, targets: got, plans: res.cities, skew: res.skew ?? null })
     const weak = ranked.filter((x) => !x.home && x.fit < 50 && x.audience >= 3).slice(0, 1).map((x) => x.city)
     const chips: Chip[] = got.slice(0, 1).map((x) => ({ label: `Rewrite it for ${x}`, agent: 'adapt' as const, prompt: `Make it work in ${x}` }))
     if (weak.length) chips.push({ label: `Crack ${weak[0]}`, agent: 'adapt', prompt: `Make it work in ${weak[0]}` })
@@ -341,6 +346,45 @@ async function grow(c: Campaign, ctx: StepCtx, log: Log): Promise<Apply> {
       summary: res.reply || `Your content lands best in ${home}. Grow next into ${list(got)}.`,
       chips,
     }
+  }
+}
+
+async function deep(c: Campaign, ctx: StepCtx, log: Log): Promise<Apply> {
+  const cr = (ctx.newIds.length && c.creatives[ctx.newIds[0]]) || originals(c).at(-1)
+  if (!cr) throw new Error('Nothing to dive into yet. Attach an ad or paste a script first.')
+  const cities = campaignCities(c).slice(0, 6)
+  const extra = await ensureScores([cr], cities, log)
+  const local = structuredClone(cr)
+  for (const r of local.refs) if (extra[cr.id]?.[r.id]) r.scores = { ...r.scores, ...extra[cr.id][r.id] }
+  const interest = c.brief.interest || ctx.nlu.interest || undefined
+  log('Who each reference speaks to: Qloo age and gender skew of its fans')
+  log(`What this audience also loves in ${list(cities)}: brands, podcasts, TV, places`)
+  log('Niche picks, the vibe gap per city, and where in each city the ad is strongest')
+  if (c.brief.competitors?.length) log(`Competitor map: ${list(c.brief.competitors)}`)
+  if (interest) log(`Where ${interest} fans live`)
+  log('Connecting the signals into a strategist read')
+  const res = await api.deep({
+    creative: local,
+    regions: cities,
+    brief: briefPayload(c, ctx),
+    audience: c.brief.audience || undefined,
+    interest,
+    sizes: Object.fromEntries(cities.map((x) => [x, audienceOf(x, c.brief.reach)])),
+  })
+  const { evidence, ...data } = res
+  log(`${data.insights.length} connected insight${data.insights.length === 1 ? '' : 's'}`)
+
+  return (cc) => {
+    mergeScores(cc, extra)
+    for (const e of evidence) cc.evidence[e.id] = e
+    if (interest && !cc.brief.interest) cc.brief.interest = interest
+    const takeId = addTake(cc, 'deep', `Deep dive · ${cr.name}`, { kind: 'deep', creativeId: cr.id, cities, deep: data })
+    const chips: Chip[] = data.insights
+      .map((i) => i.action)
+      .filter((a): a is NonNullable<typeof a> => !!a)
+      .slice(0, 2)
+      .map((a) => ({ label: a.label, agent: a.agent, prompt: a.prompt }))
+    return { takeId, summary: data.summary, chips, evidenceIds: Array.from(new Set(data.insights.flatMap((i) => i.evidence))).slice(0, 4) }
   }
 }
 
@@ -365,7 +409,7 @@ export async function askQloo(c: Campaign, question: string, cities: City[]) {
 }
 
 export const stepLabel = (agent: PlanStep['agent'], city?: City) =>
-  agent === 'read' ? 'Read the ad' : agent === 'adapt' ? (city ? `Adapt for ${city}` : 'Adapt weak regions') : `${AGENTS[agent].name}`
+  agent === 'deep' ? 'Deep dive' : agent === 'read' ? 'Read the ad' : agent === 'adapt' ? (city ? `Adapt for ${city}` : 'Adapt weak regions') : `${AGENTS[agent].name}`
 
 /** Regions where the latest ad fits weakly (adapt targets when none were named). */
 export function weakRegions(c: Campaign, max = 3): City[] {

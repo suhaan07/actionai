@@ -1,5 +1,5 @@
 export type AgentId = 'create' | 'test' | 'adapt' | 'spend' | 'grow'
-export type StepAgent = AgentId | 'read'
+export type StepAgent = AgentId | 'read' | 'deep'
 
 /** India's default metros (kept for the tour and as the fallback market). Any city worldwide can be added. */
 export const CITIES = ['Delhi', 'Mumbai', 'Chennai', 'Bengaluru', 'Kolkata', 'Lucknow']
@@ -22,6 +22,8 @@ export interface Brief {
   locked?: string[]
   /** The country the campaign runs in, e.g. 'India', 'United States' */
   market?: string
+  /** A Qloo interest audience the product targets, e.g. 'Health And Beauty' */
+  interest?: string
   currency?: 'INR' | 'USD' | 'GBP' | 'EUR'
   /** Spend assumptions the team can override: audience (millions) and CPM (in the campaign currency) per region */
   reach?: Record<string, number>
@@ -87,7 +89,21 @@ export interface Evidence {
   tags: { name: string; id: string }[]
   tagScores?: EvidenceEntity[]
   from?: { name: string; byCity: CityScores }
+  /** Age-band and gender skew of a reference's fans (−1…1) */
+  skew?: Skew
+  /** Qloo style/theme tags that change in a swap */
+  vibe?: Vibe
   calls: string[]
+}
+
+export interface Skew {
+  age: Record<string, number>
+  gender: Record<string, number>
+}
+
+export interface Vibe {
+  from: string[]
+  to: string[]
 }
 
 export interface SensitivityFlag {
@@ -109,6 +125,7 @@ export interface Swap {
   flag?: SensitivityFlag
   override?: string
   at?: string | null
+  vibe?: Vibe
 }
 
 // ── Create ──────────────────────────────────────────────
@@ -118,12 +135,16 @@ export interface ProfileItem {
   name: string
   type: string
   description?: string | null
+  affinity?: number | null
+  popularity?: number | null
 }
 
 export interface CityProfile {
   city: City
   domains: { key: string; label: string; type: string; items: ProfileItem[] }[]
   tags: { id: string; name: string }[]
+  /** Set when the profile is of an interest audience in the city, not the whole city */
+  audience?: string
 }
 
 export interface CityWrite {
@@ -149,6 +170,22 @@ export interface GrowCreator {
   about?: string
   score: number
   evidenceId: string
+  /** big: duet or stitch them; reach: less famous, pitch a collab */
+  tier?: 'big' | 'reach'
+  popularity?: number | null
+}
+
+/** A Qloo entity with its affinity to the signal (0–1) and how mainstream it is (popularity 0–1). */
+export interface IntelItem {
+  id: string
+  name: string
+  type?: string
+  affinity?: number | null
+  popularity?: number | null
+  about?: string
+  lat?: number
+  lon?: number
+  evidenceId?: string
 }
 
 /** One city's post plan for a creator growing into it. */
@@ -159,7 +196,51 @@ export interface GrowPlan {
   audio: string
   touch: { text: string; basis: string[]; evidenceId: string | null }
   creators: GrowCreator[]
+  deals?: { brands: IntelItem[]; podcasts: IntelItem[]; evidenceId: string | null }
   flag?: SensitivityFlag
+}
+
+export interface SkewRef {
+  refId: string
+  label: string
+  via: string
+  skew: Skew
+  evidenceId?: string
+}
+
+export interface SkewBundle {
+  ad: Skew | null
+  refs: SkewRef[]
+  target: { audience: string | null; match: number | null }
+}
+
+export interface DeepInsight {
+  headline: string
+  body: string
+  kinds: string[]
+  evidence: string[]
+  action?: { label: string; agent: AgentId; prompt: string } | null
+}
+
+export interface DeepCity {
+  brands: IntelItem[]
+  podcasts: IntelItem[]
+  tv: IntelItem[]
+  places: IntelItem[]
+  gems: IntelItem[]
+  vibe: { ad: string[]; city: string[] }
+}
+
+export interface DeepData {
+  summary: string
+  insights: DeepInsight[]
+  skew: SkewBundle
+  cities: Record<string, DeepCity>
+  rivals: { name: string; id: string; byCity: CityScores; evidenceId: string }[]
+  niche: { name: string; id: string; byCity: CityScores; evidenceId: string } | null
+  hotspots: Record<string, { center: [number, number]; radius_km: number; cells: [number, number, number][]; near: string[]; evidenceId?: string }>
+  hero: string | null
+  fits: CityScores
 }
 
 export interface Persona {
@@ -175,7 +256,8 @@ export type TakeData =
   | { kind: 'adapt'; sourceId: string; adaptedId: string; city: City; swaps: Swap[] }
   | { kind: 'spend'; budget: number; cities: City[]; creativeIds: string[] }
   | { kind: 'create'; cities: City[]; master?: Master }
-  | { kind: 'grow'; creativeId?: string; home?: City; cities: City[]; targets: City[]; plans: Record<string, GrowPlan> }
+  | { kind: 'grow'; creativeId?: string; home?: City; cities: City[]; targets: City[]; plans: Record<string, GrowPlan>; skew?: SkewBundle | null }
+  | { kind: 'deep'; creativeId: string; cities: City[]; deep: DeepData }
 
 export interface Take {
   id: string
@@ -262,6 +344,8 @@ export interface Campaign {
   profiles: Record<string, CityProfile>
   writes: Record<string, CityWrite>
   personas: Record<string, Persona[]>
+  /** "Who it speaks to" per creative, loaded when the Test take is opened */
+  skews?: Record<string, SkewBundle>
   selectedTakeId?: string
   busy?: boolean
   /** A request on hold until the user attaches the ad it was about */
@@ -270,7 +354,8 @@ export interface Campaign {
 
 /** What the router's language model pulled out of a request. */
 export interface Understanding {
-  intents: AgentId[]
+  intents: (AgentId | 'deep')[]
+  interest?: string | null
   explain: boolean
   ask?: boolean
   regions: string[]

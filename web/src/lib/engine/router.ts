@@ -49,7 +49,8 @@ const INTENTS: Record<AgentId, RegExp> = {
 
 /** Fallback understanding when /api/understand is unreachable. */
 export function understandLocally(text: string): Understanding {
-  const intents = (Object.keys(INTENTS) as AgentId[]).filter((a) => INTENTS[a].test(text))
+  const intents: Understanding['intents'] = (Object.keys(INTENTS) as AgentId[]).filter((a) => INTENTS[a].test(text))
+  if (/\b(deep dive|who (does|will) (it|this|the ad) (really )?(reach|speak)|podcasts? to sponsor|partner with|pop-?ups?)\b/i.test(text)) intents.push('deep')
   const budget = detectBudget(text)
   if (budget && !intents.includes('spend')) intents.push('spend')
   const source = detectSource(text)
@@ -115,15 +116,17 @@ export function route({ campaign, text, attachments, nlu, pinned, usePlaceholder
     return { kind: 'ask', steps: [], questions: [], cities, confidence: 0.85 }
   }
 
-  let intents: AgentId[] = [...nlu.intents]
+  // A deep dive is a step, not an agent: it runs after the ad is read and tested.
+  const wantsDeep = nlu.intents.includes('deep')
+  let intents: AgentId[] = nlu.intents.filter((i): i is AgentId => i !== 'deep')
   if (nlu.budget && !intents.includes('spend')) intents.push('spend')
   if (mention) intents = Array.from(new Set([mention, ...intents.filter((i) => i === 'spend' && mention !== 'create')]))
-  if (!intents.length) {
+  if (!intents.length && !wantsDeep) {
     if (newCreative) intents = ['test']
     else if (cities.length && !hasCreative) intents = ['create']
   }
 
-  if (!intents.length) {
+  if (!intents.length && !wantsDeep) {
     questions.push({
       id: uid('q'),
       field: 'intent',
@@ -142,7 +145,7 @@ export function route({ campaign, text, attachments, nlu, pinned, usePlaceholder
 
   // Grow works from a Reel or post, or just from what the creator says they make.
   const grows = intents.includes('grow')
-  const needsCreative = intents.some((i) => i !== 'create' && i !== 'grow')
+  const needsCreative = wantsDeep || intents.some((i) => i !== 'create' && i !== 'grow')
   const writes = intents.includes('create') && (nlu.deliverables ?? []).some((d) => d === 'script' || d === 'social_post' || d === 'video' || d === 'reel')
   // Questions the language model wrote for this request, minus anything we already know.
   const known = {
@@ -245,7 +248,7 @@ export function route({ campaign, text, attachments, nlu, pinned, usePlaceholder
   if (writes && needsCreative) steps.push({ agent: 'read', why: 'read the new script for scoring' })
 
   const tested = campaign.takes.some((t) => t.data.kind === 'test')
-  if (intents.includes('test') || ((intents.includes('adapt') || intents.includes('spend')) && (newCreative || !tested))) {
+  if (intents.includes('test') || ((intents.includes('adapt') || intents.includes('spend') || wantsDeep) && (newCreative || !tested))) {
     steps.push({ agent: 'test', why: intents.includes('test') ? 'score the ad per region' : 'needs fit scores first' })
   }
 
@@ -262,6 +265,7 @@ export function route({ campaign, text, attachments, nlu, pinned, usePlaceholder
   }
   if (intents.includes('spend')) steps.push({ agent: 'spend', why: 'split the budget by fit and audience' })
   if (grows) steps.push({ agent: 'grow', why: 'find where your content lands next' })
+  if (wantsDeep) steps.push({ agent: 'deep', why: 'connect every Qloo signal about the ad' })
 
   targetCities = Array.from(new Set([...(source ? [source] : []), ...targetCities]))
   return { kind: 'run', steps, questions: [], budget: budget ?? undefined, cities: targetCities, sourceCity: source ?? undefined, pinned: mention, confidence: 0.86 }

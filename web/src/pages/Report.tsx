@@ -36,6 +36,7 @@ export default function Report() {
   const adapts = c.takes.filter((t) => t.data.kind === 'adapt')
   const spend = [...c.takes].reverse().find((t) => t.data.kind === 'spend')
   const grow = [...c.takes].reverse().find((t) => t.data.kind === 'grow')
+  const deep = [...c.takes].reverse().find((t) => t.data.kind === 'deep')
   const answers = c.messages.filter((m) => m.role === 'agent' && m.evidenceIds?.length && !m.planId)
   const overrides = adapts.flatMap((t) => (t.data.kind === 'adapt' ? t.data.swaps.filter((s) => s.override).map((s) => ({ city: t.data.kind === 'adapt' ? t.data.city : '', s })) : []))
 
@@ -159,6 +160,21 @@ export default function Report() {
                   ))}
               </tbody>
             </table>
+          </Section>
+        )}
+
+        {deep && deep.data.kind === 'deep' && (
+          <Section title="Strategist read" note="Each insight connects two or more Qloo signals: fit, who the ad speaks to, vibe, what its audience also loves, competitors and hotspots. Pre-testing, not a forecast.">
+            <p className="font-serif text-[17px] leading-snug">{deep.data.deep.summary}</p>
+            <ul className="mt-3 space-y-3">
+              {deep.data.deep.insights.map((i, k) => (
+                <li key={k} className="break-inside-avoid">
+                  <p className="text-[13.5px] font-semibold">{i.headline}</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-ink-2">{i.body}</p>
+                  <p className="mt-0.5 font-mono text-[10px] uppercase text-ink-3">{i.kinds.join(' × ')}</p>
+                </li>
+              ))}
+            </ul>
           </Section>
         )}
 

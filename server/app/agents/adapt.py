@@ -197,10 +197,25 @@ async def adapt(*, creative: dict, source: str | None, target: str, audience: st
             picks.append((p, ref, anchors))
 
     scope, mult = regions.heat_scope(region_list)
-    anchor_cells = await asyncio.gather(*[asyncio.gather(*[qloo.heatmap(qloo.heat_params(a), scope) for a in anchors]) for _, _, anchors in picks])
+
+    async def vibe(ref: dict, anchors: list[dict]) -> dict | None:
+        # Qloo's own style/theme tags for what changes: what set the original apart, and what sets the replacement apart.
+        a = [s["id"] for s in ref.get("signals") or [] if s.get("kind") == "entity"][:2]
+        b = [x["id"] for x in anchors if x["kind"] == "entity"][:2]
+        if not a or not b:
+            return None
+        from . import intel
+        cmp = await qloo.compare(a, b)
+        v = {"from": intel._vibe_tags(cmp.get("a", [])), "to": intel._vibe_tags(cmp.get("b", []))}
+        return v if v["from"] or v["to"] else None
+
+    anchor_cells, vibes = await asyncio.gather(
+        asyncio.gather(*[asyncio.gather(*[qloo.heatmap(qloo.heat_params(a), scope) for a in anchors]) for _, _, anchors in picks]),
+        asyncio.gather(*[vibe(ref, anchors) for _, ref, anchors in picks]),
+    )
 
     swaps, evidence, items = [], [], []
-    for (p, ref, anchors), cells in zip(picks, anchor_cells):
+    for (p, ref, anchors), cells, vb in zip(picks, anchor_cells, vibes):
         rows = []
         for a, cs in zip(anchors, cells):
             by = {rg["name"]: v for rg in region_list if (v := regions.score_in(cs, rg, mult)) is not None}
@@ -220,6 +235,7 @@ async def adapt(*, creative: dict, source: str | None, target: str, audience: st
             "tags": [{"name": a["name"], "id": a["id"]} for a, _ in rows if a["kind"] == "tag"],
             "tagScores": [{"name": a["name"], "id": a["id"], "byCity": by} for a, by in rows if a["kind"] == "tag"],
             "from": {"name": ref["label"], "byCity": ref["scores"]},
+            **({"vibe": vb} if vb else {}),
             "calls": [qloo.call_string("/v2/insights", {"filter.type": a["type"] if a["kind"] == "entity" else "urn:tag", "signal.location.query": target, **({"signal.demographics.age": age} if age else {})}) for a, _ in rows]
             + [qloo.call_string("/v2/insights", {"filter.type": "urn:heatmap", **scope, **qloo.heat_params(a)}) for a, _ in rows],
         }
@@ -237,6 +253,7 @@ async def adapt(*, creative: dict, source: str | None, target: str, audience: st
             "evidenceId": ev["id"],
             "status": "pending",
             "at": ref.get("at"),
+            **({"vibe": vb} if vb else {}),
         })
         new_line = _line_of(creative["text"], ref["text"]).replace(ref["text"], p.replacement.strip())
         items.append({"id": sid, "text": f"New line for {target}: \"{new_line}\"", "region": target})

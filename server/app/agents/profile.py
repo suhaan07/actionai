@@ -27,17 +27,21 @@ async def _insights_with_age(params: dict, age: str | None) -> list[dict]:
     return await qloo.insights(params)
 
 
-async def region_profile(region: str, audience: str | None) -> dict:
+async def region_profile(region: str, audience: str | None, interest: dict | None = None) -> dict:
     age = qloo.age_param(audience)
     rr = await regions.resolve(region)
     loc = regions.location_params(rr) if rr else {"signal.location.query": region}
+    if interest:
+        # A niche audience (e.g. Health And Beauty): what THOSE people in this city over-index on, not the whole city.
+        loc = {**loc, "signal.demographics.audiences": interest["id"]}
 
     async def domain(key, label, ftype):
         # City-level taste: the age filter pulls every city toward the same global hits, which hides what is local.
         items = await qloo.insights({"filter.type": ftype, **loc, "take": 12})
         if key == "places":
             items = [e for e in items if not any(s in e["name"].lower() for s in _SKIP_PLACE)]
-        return {"key": key, "label": label, "type": ftype, "items": [{"id": e["id"], "name": e["name"], "type": ftype, "description": e.get("short_description") or e.get("description")} for e in items[:12]]}
+        return {"key": key, "label": label, "type": ftype, "items": [{"id": e["id"], "name": e["name"], "type": ftype, "description": e.get("short_description") or e.get("description"),
+                                                                      "affinity": e.get("affinity"), "popularity": e.get("popularity")} for e in items[:12]]}
 
     domains, music_tags, media_tags = await asyncio.gather(
         asyncio.gather(*[domain(*d) for d in DOMAINS]),
@@ -45,12 +49,15 @@ async def region_profile(region: str, audience: str | None) -> dict:
         qloo.insights({"filter.type": "urn:tag", "filter.tag.types": "urn:tag:genre:media", **loc, "take": 6}),
     )
     tags = [{"id": t["id"], "name": t["name"].strip()} for t in (music_tags + media_tags) if t.get("name")]
-    return {"city": region, "domains": [d for d in domains if d["items"]], "tags": tags[:10]}
+    return {"city": region, "domains": [d for d in domains if d["items"]], "tags": tags[:10], **({"audience": interest["name"]} if interest else {})}
 
 
-async def profiles(region_names: list[str], audience: str | None) -> dict[str, dict]:
+async def profiles(region_names: list[str], audience: str | None, interest: str | None = None) -> dict[str, dict]:
+    from . import intel
+
     names = [regions.canonical(n) for n in region_names]
-    got = await asyncio.gather(*[region_profile(n, audience) for n in names])
+    aud = await intel.find_audience(interest)
+    got = await asyncio.gather(*[region_profile(n, audience, aud) for n in names])
     if len(got) >= 3:
         # Drop what every region shares so each profile shows what is distinctive; keep the top 6 per domain.
         counts: dict[str, int] = {}
@@ -159,7 +166,7 @@ def _lists_for_prompt(p: dict) -> str:
 
 
 async def create(region_names: list[str], audience: str | None, brief: dict) -> dict:
-    profs = await profiles(region_names, audience)
+    profs = await profiles(region_names, audience, brief.get("interest") or None)
     claims = brief.pop("claims", None) or []
     brief_txt = "\n".join(f"{k}: {v}" for k, v in brief.items() if v)
     data = "\n\n".join(_lists_for_prompt(p) for p in profs.values())

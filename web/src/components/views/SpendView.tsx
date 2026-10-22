@@ -123,6 +123,21 @@ export function SpendView({ c, cities }: { c: Campaign; cities: City[] }) {
 
       <Assumptions c={c} cities={cities} />
 
+      {!c.takes.some((t) => t.data.kind === 'deep') && (
+        <button
+          disabled={c.busy}
+          onClick={() => submit(c.id, { text: 'Deep dive: which podcasts, shows and partners does this audience love, where in each city should we be, and how do we stack up against competitors?', attachments: [] })}
+          className="card flex w-full items-center gap-3 px-5 py-3 text-left transition hover:border-ink disabled:opacity-40"
+        >
+          <span className="grid h-8 w-8 place-items-center rounded bg-ink font-mono text-chalk">◈</span>
+          <span className="flex-1">
+            <span className="block text-[14px] font-semibold">Deep dive before you buy media</span>
+            <span className="block text-[12.5px] text-ink-2">Who the ad really reaches, podcasts and shows its audience loves per city, venues for pop-ups, and competitors, connected into one read.</span>
+          </span>
+          <ArrowRight className="h-4 w-4" />
+        </button>
+      )}
+
       <div className="grid gap-5 lg:grid-cols-2">
         <Targeting c={c} cities={rows.filter((r) => !r.flag).map((r) => r.city)} />
         <Creators c={c} cities={rows.filter((r) => !r.flag && r.share >= 0.15).map((r) => r.city)} />

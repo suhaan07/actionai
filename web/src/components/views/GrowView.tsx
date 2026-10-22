@@ -1,16 +1,18 @@
-import { Check, Copy, Music2, ShieldAlert, Sparkles, Users } from 'lucide-react'
+import { Check, Copy, Handshake, Music2, ShieldAlert, Sparkles, Users } from 'lucide-react'
 import { useState } from 'react'
 import { band, fitOrNull } from '../../lib/engine/scoring'
 import { growRanking } from '../../lib/engine/steps'
-import type { Campaign, City, Creative, GrowPlan } from '../../lib/types'
+import type { Campaign, City, Creative, GrowPlan, SkewBundle } from '../../lib/types'
 import { Chip, Footnote, Score } from '../ui'
+import { ItemList, matchOf, MatchBadge, PopBadge, SkewChart, skewLine, targetBands } from './intel'
 import { Panel } from './shared'
 
 const BAR = { low: 'bg-fit-low', mid: 'bg-fit-mid', high: 'bg-fit-high' }
 
-export function GrowView({ c, creative, home, cities, targets, plans }: { c: Campaign; creative?: Creative; home?: City; cities: City[]; targets: City[]; plans: Record<string, GrowPlan> }) {
+export function GrowView({ c, creative, home, cities, targets, plans, skew }: { c: Campaign; creative?: Creative; home?: City; cities: City[]; targets: City[]; plans: Record<string, GrowPlan>; skew?: SkewBundle | null }) {
   if (!creative) return <p className="text-[14px] text-ink-3">The content this plan was built from is no longer in the campaign.</p>
   const ranked = growRanking(creative, cities, home, c.brief.reach)
+  const target = targetBands(c.brief.audience || '18–24')
   let fn = 0
 
   return (
@@ -38,6 +40,27 @@ export function GrowView({ c, creative, home, cities, targets, plans }: { c: Cam
           Fit is how strongly each city&apos;s audience over-indexes on the references in your content (Qloo heatmaps). Cities are ranked by fit, weighted by roughly how many 18–34s live there. It is not a follower forecast.
         </p>
       </Panel>
+
+      {skew?.ad && (
+        <Panel title="Who your content's fans are · Qloo, in aggregate" right={<MatchBadge value={matchOf(skew.ad, target)} />}>
+          <div className="grid gap-5 sm:grid-cols-[240px_1fr]">
+            <div>
+              <p className="label mb-2">{skewLine(skew.ad)}</p>
+              <SkewChart skew={skew.ad} target={target} compact />
+            </div>
+            <ul className="space-y-1.5 text-[12.5px]">
+              {skew.refs.map((r) => (
+                <li key={r.refId} className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-medium">{r.label}</span>
+                  <span className="font-mono text-[10.5px] text-ink-3">via {r.via} · {skewLine(r.skew)}</span>
+                  {r.evidenceId && <Footnote n="Q" evidenceId={r.evidenceId} />}
+                </li>
+              ))}
+              <li className="pt-1 text-[11.5px] text-ink-3">Outlined: {c.brief.audience || '18–24'}. If your content pulls an older or one-gender crowd, the hooks below lean toward what each city&apos;s younger fans like.</li>
+            </ul>
+          </div>
+        </Panel>
+      )}
 
       <div className="space-y-5">
         {targets.map((city) => {
@@ -106,7 +129,12 @@ export function GrowView({ c, creative, home, cities, targets, plans }: { c: Cam
                             <Score value={x.score} size="sm" />
                             <span className="font-medium">{x.name}</span>
                             <Footnote n={++fn} evidenceId={x.evidenceId} />
-                            {x.about && <span className="truncate text-[11.5px] text-ink-3">{x.about}</span>}
+                            {x.tier && (
+                              <span className={`rounded px-1 font-mono text-[9px] uppercase tracking-wider ${x.tier === 'reach' ? 'bg-fit-high/15 text-fit-high' : 'bg-paper-2 text-ink-3'}`}>
+                                {x.tier === 'reach' ? 'Pitch a collab' : 'Duet or stitch'}
+                              </span>
+                            )}
+                            <PopBadge value={x.popularity} />
                           </li>
                         ))}
                       </ul>
@@ -115,6 +143,19 @@ export function GrowView({ c, creative, home, cities, targets, plans }: { c: Cam
                     )}
                     <p className="mt-1.5 text-[11px] text-ink-3">Ranked by how much {city}&apos;s audience likes them, not by niche. Big names: duet, stitch or react to them; smaller ones: pitch a collab.</p>
                   </div>
+                  {p.deals && (p.deals.brands.length > 0 || p.deals.podcasts.length > 0) && (
+                    <div>
+                      <p className="label mb-1.5 flex items-center gap-1.5">
+                        <Handshake className="h-3 w-3" /> Brand deals and podcasts · what your fans love in {city}
+                        {p.deals.evidenceId && <Footnote n={++fn} evidenceId={p.deals.evidenceId} />}
+                      </p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <ItemList items={p.deals.brands} empty="No brands stand out." />
+                        <ItemList items={p.deals.podcasts} empty="No podcasts stand out." />
+                      </div>
+                      <p className="mt-1.5 text-[11px] text-ink-3">Brands to pitch for a deal and podcasts to guest on. Number: Qloo affinity with your fans here.</p>
+                    </div>
+                  )}
                   {p.flag && (
                     <div className="rounded-md border border-fit-low/50 bg-fit-low/[0.06] px-3 py-2 text-[12.5px]">
                       <p className="flex items-center gap-1 font-mono text-[9.5px] font-semibold uppercase tracking-wider text-fit-low">

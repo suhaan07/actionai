@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 
 from .. import gemini, qloo, regions
 from . import ask as ask_agent
+from . import intel
 from . import profile as profile_agent
 from . import sensitivity
 
@@ -44,7 +45,9 @@ Rules:
 - Ground every specific name in that city's lists (audio, hashtags built from names, the local touch). basis names must be copied exactly.
 - Write like a Gen Z creator: short, casual, no corporate words, no emoji spam (at most two).
 - Never invent follower counts, trends, posting times or algorithm claims. No stereotypes or caricature.
-- `reply` answers the user's request in plain words and quotes the fit numbers."""
+- `reply` answers the user's request in plain words and quotes the fit numbers.
+- Connect the signals: if the content's fans skew older or one gender away from the creator's audience, say so in `reply` and lean the
+  hook and audio toward what that city's lists show for them; where fit is high, keep what already lands and only add the local touch."""
 
 
 def _lists(p: dict) -> str:
@@ -83,10 +86,28 @@ async def grow(*, creative: dict | None, niche: str, home: str | None, targets: 
 
     # Taste lists for home + targets (so what they all share drops out), and each target's local creators.
     profiled = list(dict.fromkeys(([home] if home in by_name else []) + targets))
-    profs, creators = await asyncio.gather(
+    # Heroes: the content's main Qloo entities, the seeds for "what this content's fans also love" in each city.
+    ranked = sorted((creative or {}).get("refs", []), key=lambda r: -intel.WEIGHT.get(r.get("prominence"), 2))
+    heroes = list(dict.fromkeys(s["id"] for r in ranked if r.get("enabled") and r.get("kind") != "unmatched"
+                                for s in r.get("signals") or [] if s["kind"] == "entity"))[:3]
+    seed = {"signal.interests.entities": ",".join(heroes)} if heroes else {}
+
+    async def deals(t: str):
+        loc = regions.location_params(by_name[t])
+        b, p = await asyncio.gather(qloo.insights({"filter.type": "urn:entity:brand", **loc, **seed, "take": 12}),
+                                    qloo.insights({"filter.type": "urn:entity:podcast", **loc, **seed, "take": 8}))
+        return {"brands": [intel._item(e) for e in b], "podcasts": [intel._item(e) for e in p]}
+
+    profs, creators, reach, deal_lists, skew = await asyncio.gather(
         profile_agent.profiles(profiled, audience),
         asyncio.gather(*[ask_agent.local_creators(by_name[t], take=8, social_only=True) for t in targets]),
+        asyncio.gather(*[ask_agent.local_creators(by_name[t], take=8, social_only=True, max_pop=0.6) for t in targets]),
+        asyncio.gather(*[deals(t) for t in targets]),
+        intel.skew_bundle(creative, audience or "18–24") if creative else asyncio.sleep(0, result=None),
     )
+    # Brands and podcasts every target shares are generic: keep what is local to each city.
+    by_city = {t: {**d, "places": [], "gems": [], "tv": []} for t, d in zip(targets, deal_lists)}
+    intel.distinct(by_city, keep=4)
 
     refs = [r for r in (creative or {}).get("refs", []) if r.get("enabled") and r.get("kind") != "unmatched"]
     def ref_line(city: str) -> str:
@@ -95,8 +116,14 @@ async def grow(*, creative: dict | None, niche: str, home: str | None, targets: 
 
     content = (creative or {}).get("text") or niche
     fit_txt = "\n".join(f"- {c}: fit {fits.get(c, '?')} · references: {ref_line(c)}" for c in [*( [home] if home else []), *targets])
+    skew_txt = ""
+    if skew and skew.get("ad"):
+        m = skew["target"]["match"]
+        skew_txt = (f"WHO THE CONTENT'S FANS ARE (Qloo, aggregate): {intel.describe(skew['ad'])}"
+                    + (f"; match with {audience or '18–24'}: {m:+.2f}" if m is not None else "") + "\n"
+                    + "\n".join(f"  - {r['label']} (via {r['via']}): {intel.describe(r['skew'])}" for r in skew["refs"]) + "\n\n")
     prompt = (f"WHAT THEY POST: {niche}\nTHE CONTENT:\n{content[:1500]}\nHOME CITY: {home or 'unknown'}\nAUDIENCE: {audience or '18–24'}\n\n"
-              f"FIT BY CITY\n{fit_txt}\n\nTARGET CITIES\n" + "\n\n".join(_lists(profs[t]) for t in targets if t in profs))
+              f"{skew_txt}FIT BY CITY\n{fit_txt}\n\nTARGET CITIES\n" + "\n\n".join(_lists(profs[t]) for t in targets if t in profs))
     out = await gemini.json_call(GrowOut, SYSTEM, [prompt], temperature=0.7)
 
     scope, mult = regions.heat_scope(region_list)
@@ -127,11 +154,17 @@ async def grow(*, creative: dict | None, niche: str, home: str | None, targets: 
         evidence.append(ev)
         return ev["id"]
 
-    async def creator_rows(city: str, people: list[dict]) -> list[dict]:
-        # Score each local creator per city, and keep the ones this city likes most.
-        cells = await asyncio.gather(*[qloo.heatmap(qloo.heat_params(p), scope) for p in people[:4]])
+    async def creator_rows(city: str, people: list[dict], within: list[dict]) -> list[dict]:
+        # The two biggest creators this city loves (to duet or stitch), plus up to three less famous ones (to pitch a collab).
+        seen = set()
+        pool = []
+        for p, tier in [(p, "big") for p in people[:2]] + [(p, "reach") for p in within[:4]]:
+            if p["id"] not in seen:
+                seen.add(p["id"])
+                pool.append({**p, "tier": tier})
+        cells = await asyncio.gather(*[qloo.heatmap(qloo.heat_params(p), scope) for p in pool[:5]])
         rows = []
-        for p, cs in zip(people[:4], cells):
+        for p, cs in zip(pool[:5], cells):
             by = score_row(p, cs)
             if city not in by:
                 continue
@@ -146,8 +179,9 @@ async def grow(*, creative: dict | None, niche: str, home: str | None, targets: 
                           qloo.call_string("/v2/insights", {"filter.type": "urn:heatmap", **scope, **qloo.heat_params(p)})],
             }
             evidence.append(ev)
-            rows.append({"name": p["name"], "id": p["id"], "about": p.get("about", ""), "score": by[city], "evidenceId": ev["id"]})
-        return sorted(rows, key=lambda r: -r["score"])[:3]
+            rows.append({"name": p["name"], "id": p["id"], "about": p.get("about", ""), "score": by[city], "evidenceId": ev["id"],
+                         "tier": p["tier"], "popularity": round(p["popularity"], 2) if p.get("popularity") is not None else None})
+        return sorted(rows, key=lambda r: (r["tier"] != "reach", -r["score"]))[:5]
 
     plans = _match(out.cities, targets)
     missing = [t for t in targets if t not in plans]
@@ -158,7 +192,7 @@ async def grow(*, creative: dict | None, niche: str, home: str | None, targets: 
     plans = {t: plans[t] for t in targets if t in plans}
     touch_ids, collab = await asyncio.gather(
         asyncio.gather(*[touch_evidence(t, p.touch) for t, p in plans.items()]),
-        asyncio.gather(*[creator_rows(t, creators[targets.index(t)]) for t in plans]),
+        asyncio.gather(*[creator_rows(t, creators[targets.index(t)], reach[targets.index(t)]) for t in plans]),
     )
 
     def squash(x: str) -> str:
@@ -184,8 +218,20 @@ async def grow(*, creative: dict | None, niche: str, home: str | None, targets: 
         tags = tags[:8]
         # Only names that are really in this city's Qloo lists go on the chips.
         known = [b for b in p.touch.basis if b.lower() in items_by_name or b.lower() in tags_by_name]
+        d = by_city.get(t, {})
+        deal_ev = None
+        if d.get("brands") or d.get("podcasts"):
+            picks = d["brands"][:4] + d["podcasts"][:3]
+            ev = {"id": f"ev_{uuid.uuid4().hex[:10]}", "title": f"Brands and podcasts your fans love in {t}",
+                  "claim": f"What fans of your content's main references in {t} over-index on (Qloo cross-domain affinity, 0–1). Pitch these brands for deals; guest on these podcasts.",
+                  "entities": [{"name": i["name"], "type": i["type"], "id": i["id"], "byCity": {t: round((i["affinity"] or 0) * 100)}} for i in picks],
+                  "tags": [], "tagScores": [],
+                  "calls": [qloo.call_string("/v2/insights", {"filter.type": f, "signal.location.query": t, "signal.interests.entities": ",".join(heroes)}) for f in ("urn:entity:brand", "urn:entity:podcast")]}
+            evidence.append(ev)
+            deal_ev = ev["id"]
         cities[t] = {"hook": p.hook, "caption": p.caption, "hashtags": tags, "audio": p.audio,
-                     "touch": {"text": p.touch.text, "basis": known, "evidenceId": evid}, "creators": rows}
+                     "touch": {"text": p.touch.text, "basis": known, "evidenceId": evid}, "creators": rows,
+                     "deals": {"brands": d.get("brands", [])[:4], "podcasts": d.get("podcasts", [])[:3], "evidenceId": deal_ev}}
 
     # Sensitivity check on everything that will be posted (never auto-approves; the UI shows flags).
     items = [{"id": t, "text": f"{v['hook']} | {v['caption']} | {' '.join(v['hashtags'])} | {v['touch']['text']}", "region": t} for t, v in cities.items()]
@@ -194,4 +240,7 @@ async def grow(*, creative: dict | None, niche: str, home: str | None, targets: 
         if t in cities:
             cities[t]["flag"] = {"reason": f["reason"], "safer": f["safer"]}
 
-    return {"reply": out.reply, "cities": cities, "profiles": {t: profs[t] for t in targets if t in profs}, "evidence": evidence}
+    if skew:
+        evidence.extend(skew["evidence"])
+    return {"reply": out.reply, "cities": cities, "profiles": {t: profs[t] for t in targets if t in profs}, "evidence": evidence,
+            "skew": {k: v for k, v in skew.items() if k != "evidence"} if skew else None}

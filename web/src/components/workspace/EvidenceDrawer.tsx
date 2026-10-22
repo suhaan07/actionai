@@ -2,6 +2,7 @@ import { X } from 'lucide-react'
 import { useStore } from '../../lib/store'
 import type { Campaign, EvidenceEntity } from '../../lib/types'
 import { FitDot } from '../ui'
+import { SkewChart, skewLine } from '../views/intel'
 
 /** Every claim has receipts: the Qloo entities, tags and calls behind it. */
 export function EvidenceDrawer({ c }: { c: Campaign }) {
@@ -39,6 +40,26 @@ export function EvidenceDrawer({ c }: { c: Campaign }) {
               <p className="text-[12.5px]">
                 {ev.from.name}: {Object.entries(ev.from.byCity).map(([k, v]) => `${k} ${v}`).join(' · ')}
               </p>
+            </div>
+          )}
+
+          {ev.skew && (
+            <div>
+              <p className="label mb-2">Fan skew · {skewLine(ev.skew)}</p>
+              <SkewChart skew={ev.skew} />
+            </div>
+          )}
+
+          {ev.vibe && (
+            <div className="grid grid-cols-2 gap-3 text-[12px]">
+              <div>
+                <p className="label mb-1">Before reads as</p>
+                {ev.vibe.from.join(', ') || '—'}
+              </div>
+              <div>
+                <p className="label mb-1">After reads as</p>
+                {ev.vibe.to.join(', ') || '—'}
+              </div>
             </div>
           )}
 

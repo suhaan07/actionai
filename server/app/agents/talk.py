@@ -91,7 +91,8 @@ class Claim(BaseModel):
 
 
 class Understanding(BaseModel):
-    intents: list[Literal["create", "test", "adapt", "spend", "grow"]] = Field(description="Every agent needed, in order. create=write ideas/scripts/posts from a brief, test=score ads per region, adapt=make an ad fit other regions, spend=split a budget, grow=a creator or small brand growing their own social reach into new cities")
+    intents: list[Literal["create", "test", "adapt", "spend", "grow", "deep"]] = Field(description="Every agent needed, in order. create=write ideas/scripts/posts from a brief, test=score ads per region, adapt=make an ad fit other regions, spend=split a budget, grow=a creator or small brand growing their own social reach into new cities, deep=a deep dive on an ad: who it really reaches, partners and media to buy, venues, competitors")
+    interest: Optional[str] = Field(default=None, description="If the product or creator targets a hobby, cause or interest community, the closest name from AUDIENCES, copied exactly (skincare → 'Health And Beauty', sneakers → 'Sneakerheads', a climate campaign → 'Climate Activism'). Null if none fits")
     explain: bool = Field(description="True only for a follow-up question about results already produced (why did X score low, what is dragging it), not a new task")
     ask: bool = Field(default=False, description="True for a question to answer from taste data that is not one of the four tasks, e.g. who could be our brand ambassador, which films could we tie in with, what do parents in Pune watch")
     deliverables: list[Literal["script", "social_post", "reel", "video", "ideas"]] = Field(default_factory=list, description="What THIS message asks Create to produce: an ad script, an Instagram/Facebook post design (social_post), Reel or short-video ideas (reel)")
@@ -120,6 +121,9 @@ UNDERSTAND_SYSTEM = """You route requests for Action AI, a tool for ad teams and
 Create (writes insights, ad scripts and social post designs from a brief), Test (scores ads per region with Qloo taste data),
 Adapt (makes an ad fit other regions), Spend (splits a budget across regions), and Grow (for creators and small brands with no
 media team: which cities their own Reels, posts or channel will land in next, with a caption, hashtags and local collabs per city).
+DEEP: "deep dive", "who does this ad really reach / speak to", "which podcasts or shows should we sponsor", "who should we partner
+with", "where in the city should we do pop-ups", "how do we stack up against <competitor>" → intents ['deep'] (it needs an ad; if
+none exists yet it is read and tested first). Put competitor names in competitors.
 GROW RULE (check this first): when someone describes what THEY make or post (Reels, TikToks, vlogs, a page, a channel) and asks
 where else it would land, which cities would like it, or how to grow or reach more people, intents is ['grow'] and ask is false.
 e.g. "I make street food Reels in Delhi. Which cities would love my content next?" → intents ['grow'], source_region 'Delhi',
@@ -168,8 +172,14 @@ def _regions(raw: list[str], market: str | None = None) -> list[str]:
 
 
 async def understand(text: str, context: str) -> dict:
-    out = await gemini.json_call(Understanding, UNDERSTAND_SYSTEM, prefer="groq", parts=[f"CAMPAIGN SO FAR: {context}\n\nUSER: {text}"], temperature=0.0)
+    from . import intel
+
+    names = [a["name"] for a in await intel.audience_list()]
+    out = await gemini.json_call(Understanding, UNDERSTAND_SYSTEM, prefer="groq",
+                                 parts=[f"AUDIENCES: {', '.join(names)}\n\nCAMPAIGN SO FAR: {context}\n\nUSER: {text}"], temperature=0.0)
     d = out.model_dump()
+    if d.get("interest") and d["interest"] not in names:
+        d["interest"] = None
     d["market"] = regions.canonical_country(d.get("market"))
     d["regions"] = _regions(d["regions"], d["market"])
     # A focus names what to change in the ad, never a place: "make it work in Miami" has no focus.

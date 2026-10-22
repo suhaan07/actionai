@@ -203,6 +203,11 @@ function SwapCard({ n, s, sentence, onPatch }: { n: number; s: Swap; sentence: s
           {s.why}
           <Footnote n={n} evidenceId={s.evidenceId} />
         </p>
+        {s.vibe && (s.vibe.from.length > 0 || s.vibe.to.length > 0) && (
+          <p className="mt-1.5 flex flex-wrap items-center gap-1 font-mono text-[10.5px] text-ink-3" title="Qloo style and theme tags that set each side apart">
+            Vibe: <span className="text-ink-2">{s.vibe.from.slice(0, 3).join(', ') || '—'}</span> → <span className="text-ink">{s.vibe.to.slice(0, 3).join(', ') || '—'}</span>
+          </p>
+        )}
         <div className="mt-2 flex items-center gap-2">
           <span className="font-mono text-[10.5px] text-ink-3">This reference in the target city</span>
           <Score value={s.toScore} size="sm" />

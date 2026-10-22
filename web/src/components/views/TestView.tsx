@@ -4,6 +4,7 @@ import { band, fitOrNull, fitScore, scorable } from '../../lib/engine/scoring'
 import { useStore } from '../../lib/store'
 import type { Campaign, City, Creative, Reference } from '../../lib/types'
 import { Chip, FitBar, Footnote, Score } from '../ui'
+import { matchOf, MatchBadge, SkewChart, skewLine, targetBands } from './intel'
 import { HighlightedScript, Panel, Timeline } from './shared'
 
 const BAND_WORD = { low: 'Weak fit', mid: 'Mixed', high: 'Strong fit' }
@@ -103,6 +104,7 @@ export function TestView({ c, creatives, cities }: { c: Campaign; creatives: Cre
               </button>
             )}
           </Panel>
+          <WhoItReaches c={c} creative={creative} />
           <Personas c={c} creative={creative} city={city} />
         </div>
       </div>
@@ -130,6 +132,50 @@ function RefList({ title, refs, city, empty }: { title: string; refs: Reference[
         </ul>
       )}
     </div>
+  )
+}
+
+function WhoItReaches({ c, creative }: { c: Campaign; creative: Creative }) {
+  const load = useStore((s) => s.loadSkew)
+  const submit = useStore((s) => s.submit)
+  const sk = c.skews?.[creative.id]
+  useEffect(() => load(c.id, creative.id), [c.id, creative.id, load])
+  const target = targetBands(c.brief.audience)
+  const m = matchOf(sk?.ad, target)
+  const worst = sk ? [...sk.refs].sort((a, b) => (matchOf(a.skew, target) ?? 0) - (matchOf(b.skew, target) ?? 0))[0] : undefined
+
+  return (
+    <Panel data-tour="who" title="Who it speaks to · Qloo fan skew" right={<MatchBadge value={m} />}>
+      {!sk ? (
+        <div className="space-y-1.5" aria-busy>
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-2.5 animate-pulse rounded bg-paper-2" />
+          ))}
+          <p className="font-mono text-[10.5px] text-ink-3">Reading who each reference&apos;s fans are…</p>
+        </div>
+      ) : !sk.ad ? (
+        <p className="text-[12.5px] text-ink-3">Qloo has no age or gender data for these references (genre tags have none).</p>
+      ) : (
+        <>
+          <p className="label mb-2">The ad · {skewLine(sk.ad)}</p>
+          <SkewChart skew={sk.ad} target={target} compact />
+          {worst && (matchOf(worst.skew, target) ?? 0) <= -0.15 && (
+            <p className="mt-3 text-[12.5px]">
+              <strong>{worst.label}</strong> pulls it away from {c.brief.audience}: its fans skew {skewLine(worst.skew)}.
+              {worst.evidenceId && <Footnote n="Q" evidenceId={worst.evidenceId} />}
+            </p>
+          )}
+          <button
+            disabled={c.busy}
+            onClick={() => submit(c.id, { text: 'Deep dive: who does this ad really reach, and who should we partner with?', attachments: [] })}
+            className="btn mt-3 w-full justify-center disabled:opacity-40"
+          >
+            ◈ Deep dive: partners, venues, competitors <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </>
+      )}
+      <p className="mt-3 border-t border-line pt-3 text-[11.5px] text-ink-3">Age and gender skew of each reference&apos;s fans in aggregate, weighted by prominence. Outlined: your audience.</p>
+    </Panel>
   )
 }
 

@@ -54,3 +54,21 @@ Still to confirm in the Parameter Reference / Entity Type Parameter Guide (not i
 - **Private server-side caching is allowed, no time limit** (our Supabase cache is fine).
 - **Never commit Qloo response data to the public repo.** Keep cached responses in Supabase only; no JSON dumps in git.
 - Responses can't be trimmed server-side (e.g. `akas`). Strip fields in our backend before sending to the browser.
+
+## Probed 22 Oct 2026 (hackathon key)
+
+Works:
+- `filter.type=urn:demographics` + `signal.interests.entities` → age-band and gender skew of an entity's fans (−1…1). Entities only; tags return nothing.
+- `filter.popularity.max` / `.min` on any entity list → niche or mainstream picks. Every result carries `popularity` (0–1) and `query.affinity` (0–1).
+- Cross-domain: `signal.interests.entities` with another `filter.type` (brand, podcast, tv_show, place…) → what fans of X also like. Add `filter.location.query` for places in a city; places carry `location.lat/lon`.
+- `filter.type=urn:tag` + `signal.interests.entities` → tags fans of X over-index on.
+- `filter.results.entities` → affinity of named entities against a signal (e.g. a city).
+- `GET /v2/insights/compare` with `a.signal.interests.entities` and `b.signal.interests.entities` → the tags that set each side apart, including Qloo's style, theme and audience tags (`urn:tag:style:qloo:vibrant`, `urn:tag:theme:qloo:urban_life`, `urn:tag:audience:qloo:devoted`).
+- `GET /v2/audiences?filter.audience.types=…` lists audience URNs (communities, hobbies_and_interests, global_issues, investing_interests), e.g. `urn:audience:hobbies_and_interests:health_and_beauty`. `/v2/audiences/types` lists the types.
+- `bias.trends=high` is accepted; `query.measurements.audience_growth` came back 0.
+- `urn:entity:podcast` works.
+
+Doesn't (or not usefully):
+- `urn:entity:video_game` is not supported for `filter.type`.
+- `GET /v2/trending` needs `filter.type`, `filter.start_date`, `filter.end_date`; returned an empty list for a well-known artist.
+- `/v2/tags?filter.query=street food` returned nothing; cuisine tags need another route.
