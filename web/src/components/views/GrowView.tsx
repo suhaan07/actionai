@@ -5,6 +5,7 @@ import { growRanking } from '../../lib/engine/steps'
 import type { Campaign, City, Creative, GrowPlan, SkewBundle } from '../../lib/types'
 import { Chip, Footnote, Score } from '../ui'
 import { ItemList, matchOf, MatchBadge, PopBadge, SkewChart, skewLine, targetBands } from './intel'
+import { Mockup } from './Mockup'
 import { Panel } from './shared'
 
 const BAR = { low: 'bg-fit-low', mid: 'bg-fit-mid', high: 'bg-fit-high' }
@@ -81,9 +82,21 @@ export function GrowView({ c, creative, home, cities, targets, plans, skew }: { 
               </header>
               <div className="grid gap-5 p-5 lg:grid-cols-[1.3fr_1fr]">
                 <div className="space-y-4">
-                  <div>
-                    <p className="label mb-1">Open with</p>
-                    <p className="font-serif text-[22px] italic leading-snug">“{p.hook}”</p>
+                  <div className="flex items-start gap-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="label mb-1">Open with</p>
+                      <p className="font-serif text-[22px] italic leading-snug">“{p.hook}”</p>
+                    </div>
+                    {/* The Reel cover for this city: an AI frame of the post with its local touch, hook overlaid by the app. */}
+                    <Mockup
+                      className="w-[150px] shrink-0"
+                      text={`${p.caption}\nLocal touch: ${p.touch.text}\n${creative.text}`}
+                      city={city}
+                      kind="vertical social video cover frame, shot on a phone by a creator"
+                      aspect="9:16"
+                      headline={p.hook}
+                      tourId={city === targets[0] ? 'grow-mock' : undefined}
+                    />
                   </div>
                   <PostBox caption={p.caption} hashtags={p.hashtags} />
                   <p className="flex items-start gap-2 text-[13px] text-ink-2">

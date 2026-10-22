@@ -31,7 +31,8 @@ class ScenePrompt(BaseModel):
 SYSTEM = """You turn an ad (a script, a post brief, or a scene) into ONE prompt for a photorealistic image generator.
 Pick the single most iconic frame. Describe the subject, setting, people (age range, wardrobe), props, lighting, mood and camera
 (e.g. '35mm, shallow depth of field, golden hour'). Make the location's culture visible through concrete details.
-Rules: no text, no letters, no logos, no brand names, no real celebrities' names. Never depict religious figures or idols next to a
+Rules: no text, no letters, no logos, no brand names, no real celebrities' names. Avoid anything that would carry lettering:
+no shop signs, signboards, banners, menus or printed T-shirts (image models scrawl fake words on them); use plain surfaces and lights. Never depict religious figures or idols next to a
 product. Style: high-end advertising photography."""
 
 
@@ -46,7 +47,7 @@ async def render(prompt: str, aspect: Literal["4:5", "9:16", "1:1", "16:9"] = "4
     if not config.POLLINATIONS_API_KEY:
         raise ImageGenError("Image mock-ups need a Pollinations key: add POLLINATIONS_API_KEY to server/.env.")
     w, h = SIZES[aspect]
-    full = f"{prompt}. Photorealistic advertising photograph, no text, no words, no logos, no watermark."
+    full = f"{prompt}. Photorealistic advertising photograph, no text, no words, no letters, no signs, no logos, no watermark."
     name = hashlib.sha256(f"{config.POLLINATIONS_MODEL}|{w}x{h}|{full}".encode()).hexdigest()[:32] + ".jpg"
     path = IMAGE_DIR / name
     if path.exists():

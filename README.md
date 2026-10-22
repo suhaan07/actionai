@@ -33,7 +33,7 @@ Every score, insight and swap carries a footnote that opens the Qloo entities, p
 
 **Also in the app**
 
-- **Four guided tours**, clicked through step by step and replayed from cache, so they are instant. For creators: a thrift-fit TikToker in Atlanta (US) or a street-food Reels creator in Delhi (India) goes from one line to the cities to grow into, a post plan per city, collabs and brand deals, a pre-test, a rewrite for the weakest city and a small boost. For ad teams: a fictional music festival, EchoFest, touring five cities in the US or India.
+- **Four guided tours**, clicked through step by step and replayed from cache, so they are instant. For creators: a thrift-fit TikToker in Atlanta (US) or a street-food Reels creator in Delhi (India) goes from one line to the cities to grow into, a post plan and Reel-cover mock-up per city, collabs and brand deals, a pre-test, a rewrite for the weakest city and a small boost. For ad teams: a fictional music festival, EchoFest, touring five cities in the US or India.
 - **Visual mock-ups:** Pollinations FLUX renders a frame for the post and for Adapt's before and after. Images carry no text; the app overlays the headline so it is always spelled right.
 - **Shareable report** at `/r/<id>`: one page for a boss or client, printable to PDF.
 - **Meta Ads Manager CSV:** the starting split, interests and regions in a bulk-import file.

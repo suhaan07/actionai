@@ -81,7 +81,7 @@ Qloo API · Gemini 2.5 Flash · Groq (gpt-oss-120b) · Pollinations (FLUX) · Fa
 ## Testing instructions (for judges)
 
 1. Open the live demo at https://actionai-pink.vercel.app. No login is needed.
-2. The site opens on **For creators**. Click **Take the tour** (a thrift-fit TikToker in Atlanta) or **or the India version** (a street-food Reels creator in Delhi): one line in, then the cities to grow into, a post plan per city, collabs, brand deals, a pre-test, a rewrite and a small boost. About 3 minutes; you click each step yourself.
+2. The site opens on **For creators**. Click **Take the tour** (a thrift-fit TikToker in Atlanta) or **or the India version** (a street-food Reels creator in Delhi): one line in, then the cities to grow into, a post plan and AI mock-up per city, collabs, brand deals, a pre-test, a rewrite with before/after mock-ups and a small boost. About 3 minutes; you click each step yourself.
    Then switch to **For ad teams** and take that tour: a fictional music festival (EchoFest) touring five cities, in the US or India. About 4 minutes.
 3. Then try your own request on the home page, for example:
    - `Launching a canned cold coffee for college students in Mumbai, Bengaluru and Kolkata: insights, a script and 3 Reel ideas`
